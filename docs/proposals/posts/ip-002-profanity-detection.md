@@ -354,9 +354,9 @@ See "Review Questions" below for the questions that need decisions before implem
 
 ## Changelog
 
-| Date       | Author    | Changes       |
-|------------|-----------|---------------|
-| 2026-04-23 | Claude AI | Initial draft |
-| 2026-04-23 | jdubec    | Resolved review questions (Q1: lingua-py, Q2: leetspeak, Q3: drop severity_sum → IP-001 amendment) |
-| 2026-04-23 | jdubec    | Accepted; Review Questions section removed |
-| 2026-04-23 | jdubec    | Implemented: `scripts/fetch_ldnoobw.py`, `oss_profanity/profanity.py`, `oss_profanity/wordlists/ldnoobw/` (28 files vendored at SHA `5faf2ba`), 25 new tests (42/42 total passing, mypy --strict clean). Leetspeak table extended to include `@`→`a` and `!`→`i`; normalization moved pre-tokenize so symbol substitutions survive. |
+| Date       | Author | Changes       |
+|------------|--------|---------------|
+| 2026-04-23 | jdubec | Initial draft |
+| 2026-04-23 | jdubec | Resolved review questions (Q1: lingua-py, Q2: leetspeak, Q3: drop severity_sum → IP-001 amendment) |
+| 2026-04-23 | jdubec | Accepted; Review Questions section removed |
+| 2026-04-23 | jdubec | Implemented: `scripts/fetch_ldnoobw.py`, `oss_profanity/profanity.py`, `oss_profanity/wordlists/ldnoobw/` (28 files vendored at SHA `5faf2ba`), 25 new tests (42/42 total passing, mypy --strict clean). Leetspeak table extended to include `@`→`a` and `!`→`i`; normalization moved pre-tokenize so symbol substitutions survive. |
