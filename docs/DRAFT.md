@@ -121,7 +121,6 @@ Profanity and emoji are treated as two independent signals, not lumped together.
     "languages_detected": {"en": 38, "ru": 4},
     "profanity_hits": 7,
     "profanity_rate": 0.167,             # hits / total_commits
-    "severity_sum": 12,
     "sample_profane_messages": [...],    # capped at 5 for talk material
     "emoji_hits": 14,                    # total emoji occurrences in commit messages
     "emoji_rate": 0.33,                  # emoji_hits / total_commits

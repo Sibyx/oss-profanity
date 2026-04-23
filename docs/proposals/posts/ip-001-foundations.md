@@ -225,7 +225,6 @@ class CommitStats(BaseModel):
     languages_detected: dict[str, int] = Field(default_factory=dict)
     profanity_hits: int = 0
     profanity_rate: float = 0.0
-    severity_sum: int = 0
     sample_profane_messages: list[str] = Field(default_factory=list)
     emoji_hits: int = 0
     emoji_rate: float = 0.0
@@ -437,3 +436,4 @@ None. Four review questions were resolved before acceptance; see the changelog a
 | 2026-04-23 | jdubec | Resolved review questions and updated proposal accordingly (Pydantic schema, `make_worker_id` helper) |
 | 2026-04-23 | jdubec | Accepted; removed Review Questions section; implementation started                                    |
 | 2026-04-23 | jdubec | Implemented: `oss_profanity/{config,db}.py` + test suite (17/17 passing, mypy --strict clean)          |
+| 2026-04-23 | jdubec | Post-acceptance amendment: removed `severity_sum` from `CommitStats` (IP-002 Q3 — no ground-truth source) |

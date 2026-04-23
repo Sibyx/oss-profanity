@@ -10,6 +10,7 @@ changes are documented before implementation.
 | ID | Title | Status | Last Updated |
 |----|-------|--------|--------------|
 | [IP-001](posts/ip-001-foundations.md) | Foundations — config, MongoDB access, and document schema | ✅ Implemented | 2026-04-23 |
+| [IP-002](posts/ip-002-profanity-detection.md) | Profanity detection — text-level profanity scoring | ✅ Implemented | 2026-04-23 |
 
 
 
