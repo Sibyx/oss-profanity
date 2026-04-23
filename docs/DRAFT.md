@@ -9,10 +9,12 @@
 
 ## 1. Research Question
 
-Is there a measurable correlation between profanity usage in developer communication (commit messages, code comments) and the quality of the source code they produce?
+Is there a measurable correlation between **affect signals** in developer communication (profanity and emoji in commit messages and code comments) and the quality of the source code they produce?
 
-**Hypothesis (null):** Profanity in commits is uncorrelated with code quality metrics.
-**Hypothesis (alternative):** Profanity frequency correlates with code quality — in either direction. An inverse correlation ("angry devs write better code") would be just as interesting as a positive one.
+Profanity and emoji are treated as two independent signals, not lumped together. Profanity carries a widely-shared negative valence; emoji carry a mix (🚀 vs 💀 vs 🐛). Each gets its own count, rate, and correlation against the same quality metrics, so the talk can report both dimensions separately.
+
+**Hypothesis (null):** Neither profanity nor emoji rate in commits is correlated with code quality metrics.
+**Hypothesis (alternative):** At least one of profanity rate or emoji rate correlates with code quality — in either direction. An inverse correlation ("angry devs write better code") would be just as interesting as a positive one, and the emoji dimension may reveal a different pattern than profanity.
 
 ---
 
@@ -120,7 +122,11 @@ Is there a measurable correlation between profanity usage in developer communica
     "profanity_hits": 7,
     "profanity_rate": 0.167,             # hits / total_commits
     "severity_sum": 12,
-    "sample_profane_messages": [...]     # capped at 5 for talk material
+    "sample_profane_messages": [...],    # capped at 5 for talk material
+    "emoji_hits": 14,                    # total emoji occurrences in commit messages
+    "emoji_rate": 0.33,                  # emoji_hits / total_commits
+    "emoji_top": {"🚀": 6, "🔥": 3, "✨": 2, "🐛": 2, "👀": 1},  # top N, capped
+    "emoji_commits": 9                   # commits with at least one emoji
   },
   
   # Lifecycle
@@ -135,6 +141,9 @@ Is there a measurable correlation between profanity usage in developer communica
     "files_scanned": 87,
     "comment_profanity_hits": 3,
     "identifier_profanity_hits": 0,
+    "comment_emoji_hits": 5,
+    "identifier_emoji_hits": 0,
+    "emoji_top": {"✅": 2, "⚠️": 2, "🚧": 1},
     "ruff_issues": 156,
     "ruff_issues_per_kloc": 12.6,
     "eslint_issues": null,
@@ -164,7 +173,8 @@ profanity-lab/
 │   ├── __init__.py
 │   ├── config.py              # MongoDB URI, paths, tunables
 │   ├── db.py                  # Mongo client + claim_next_repo
-│   ├── profanity.py           # scan(), detect_language()
+│   ├── profanity.py           # profanity scan(), detect_language()
+│   ├── emoji_scan.py          # emoji extraction + counting
 │   ├── archive_ingest.py      # Stage 1+2 entrypoint
 │   ├── sampling.py            # Stage 3 one-shot
 │   ├── repo_worker.py         # Stage 4 entrypoint
@@ -201,8 +211,20 @@ Runs on `jd-profanity-mogo`.
         - Skip if author login matches bot regex: `(bot|dependabot|renovate|github-actions|greenkeeper)`
         - `detect_language(message)` via `langdetect`
         - `profanity.scan(message, lang)` → list of hits
-        - Upsert into `repos` using atomic operators:
+        - `emoji_scan.extract(message)` → list of emoji (stripped of skin-tone / ZWJ variants)
+        - Upsert into `repos` using atomic operators. `$inc` accumulates scalars; per-emoji counts go into a nested `emoji_top` map via `$inc` on dotted keys (pruned to top-N later):
           ```python
+          inc = {
+              "commit_stats.total_commits_in_window": 1,
+              "commit_stats.profanity_hits": len(hits),
+              "commit_stats.emoji_hits": len(emoji),
+              f"commit_stats.languages_detected.{lang}": 1,
+          }
+          if emoji:
+              inc["commit_stats.emoji_commits"] = 1
+          for e in set(emoji):
+              inc[f"commit_stats.emoji_top.{e}"] = emoji.count(e)
+
           db.repos.update_one(
             {"_id": repo_id},
             {
@@ -211,11 +233,7 @@ Runs on `jd-profanity-mogo`.
                 "first_seen_at": now,
                 "status": "seen"
               },
-              "$inc": {
-                "commit_stats.total_commits_in_window": 1,
-                "commit_stats.profanity_hits": len(hits),
-                f"commit_stats.languages_detected.{lang}": 1
-              },
+              "$inc": inc,
               "$addToSet": {
                 "commit_stats.unique_authors": author_login
               }
@@ -228,7 +246,10 @@ Runs on `jd-profanity-mogo`.
               {"$push": {"commit_stats.sample_profane_messages": message[:200]}}
             )
           ```
-4. After all files processed, run one-shot pass to compute `profanity_rate = profanity_hits / total_commits_in_window` on every doc.
+4. After all files processed, run one-shot pass per doc to compute:
+   - `profanity_rate = profanity_hits / total_commits_in_window`
+   - `emoji_rate = emoji_hits / total_commits_in_window`
+   - Prune `emoji_top` to the 20 most frequent (keeps per-doc size bounded when heavy emoji users get hundreds of distinct glyphs).
 
 **Resilience:** each hourly file tracked in `ingest_progress` collection; reruns skip completed files. Downloads are idempotent (HTTP GET with resume).
 
@@ -339,6 +360,9 @@ def run_all(repo_dir, primary_lang):
         "files_scanned": 0,
         "comment_profanity_hits": 0,
         "identifier_profanity_hits": 0,
+        "comment_emoji_hits": 0,
+        "identifier_emoji_hits": 0,
+        "emoji_top": {},              # Counter-like: {emoji: count}
         "ruff_issues": None,
         "eslint_issues": None,
         "lizard_avg_ccn": None,
@@ -346,7 +370,8 @@ def run_all(repo_dir, primary_lang):
         "lizard_functions": None,
     }
 
-    # Source profanity scan — polyglot, simple regex over comments + identifiers
+    # Source scan — polyglot, simple regex over comments + identifiers.
+    # Returns profanity counts, emoji counts, and an emoji top-N map.
     scan_results = scan_source_tree(repo_dir)
     result.update(scan_results)
 
@@ -387,7 +412,8 @@ def run_all(repo_dir, primary_lang):
 - Walk files, skip `node_modules/`, `vendor/`, `.git/`, `dist/`, `build/`, minified JS (name contains `.min.`), files > 1 MB
 - Extract comments with regex per file extension (`//`, `#`, `/* */`)
 - Extract identifiers with regex (camelCase / snake_case word splitter)
-- Feed each to `profanity.scan()`
+- Feed each to `profanity.scan()` → `comment_profanity_hits`, `identifier_profanity_hits`
+- Feed each to `emoji_scan.extract()` → `comment_emoji_hits`, `identifier_emoji_hits`, accumulate per-glyph counts into `emoji_top` (pruned to top 20 before return)
 
 ### 5.5 `profanity.py`
 
@@ -434,6 +460,32 @@ def scan(text: str, lang: str = "en") -> list[str]:
         hits.extend(tokens & _LANG_SETS[lang])
     return sorted(set(hits))
 ```
+
+### 5.6 `emoji_scan.py`
+
+Emoji are a second affect signal, tracked independently from profanity. Use the [`emoji`](https://pypi.org/project/emoji/) package for extraction (Unicode-correct, handles ZWJ sequences like 👨‍💻 and skin-tone modifiers) rather than a hand-rolled regex.
+
+```python
+import emoji
+
+def extract(text: str) -> list[str]:
+    """Return the emoji (in order of appearance) found in text.
+
+    Skin-tone and variation-selector-16 are stripped so that 👍 and 👍🏽 collapse
+    to the same base glyph for counting, but ZWJ-joined compounds (👨‍💻) are kept
+    as a single unit.
+    """
+    if not text:
+        return []
+    return [d["emoji"] for d in emoji.emoji_list(text)]
+
+def count(text: str) -> int:
+    return emoji.emoji_count(text)
+```
+
+Notes:
+- Shortcodes like `:rocket:` in commit messages are **not** expanded — we only count rendered Unicode emoji. Shortcode expansion is a platform-rendering artifact, not developer intent.
+- Identifier scanning: emoji in Python / JS identifiers are rare but valid (PEP 3131, ECMAScript); counting them is cheap, and if the result is consistently zero we can drop it from the schema later.
 
 ---
 
@@ -551,21 +603,25 @@ Deploy = `scp` the repo + `ssh <host> bash scripts/setup_*.sh`. That's it.
 Deliverables produced by `analyze_results.py`:
 
 1. **`commit_profanity_distribution.csv/png`** — histogram of profanity rate across all ~500K repos. How swear-y is OSS on average?
-2. **`language_breakdown.csv/png`** — which human languages show the most profanity per commit.
-3. **`profanity_vs_quality.csv/png`** — scatter of `profanity_rate` vs `ruff_issues_per_kloc` + vs `lizard_avg_ccn`, with Spearman correlation + 95% CI.
-4. **`cohort_comparison.csv`** — Mann-Whitney U test between profane cohort and clean cohort on each quality metric.
-5. **`top_offenders.md`** — table of the 10 most profane commit messages found (redacted/asterisked), as talk material.
-6. **`sample_repos.md`** — a handful of case studies (highest profanity + high quality, highest profanity + low quality, etc.)
+2. **`commit_emoji_distribution.csv/png`** — histogram of emoji rate across all ~500K repos. How emoji-heavy is OSS on average?
+3. **`language_breakdown.csv/png`** — which human languages show the most profanity and the most emoji per commit (two overlaid bars per language).
+4. **`profanity_vs_quality.csv/png`** — scatter of `profanity_rate` vs `ruff_issues_per_kloc` + vs `lizard_avg_ccn`, with Spearman correlation + 95% CI.
+5. **`emoji_vs_quality.csv/png`** — same shape as above but for `emoji_rate` vs the quality metrics.
+6. **`cohort_comparison.csv`** — Mann-Whitney U between (a) profane vs clean cohorts and (b) high-emoji vs low-emoji cohorts on each quality metric.
+7. **`top_emoji.csv/png`** — global top 50 emoji across commit messages and across source comments, side-by-side (expect very different distributions — `:rocket:` dominates commits, `⚠️` / `✅` likely dominate comments).
+8. **`top_offenders.md`** — table of the 10 most profane commit messages found (redacted/asterisked), as talk material.
+9. **`sample_repos.md`** — a handful of case studies across the full 2×2×2 (high/low profanity × high/low emoji × high/low quality).
 
 ---
 
 ## 10. Known Limitations (own them in the talk)
 
 - **Profanity detection is noisy.** False positives from Scunthorpe-class matches, false negatives from non-dictionary slang. Accept ~5% error rate.
+- **Emoji semantics are ambiguous.** 🚀 in a commit message often marks a release; 🐛 marks a bug fix; 💩 is sarcasm. We only count occurrence, not sentiment, so the "emoji rate" is a usage signal, not an affect signal.
 - **No build-based analysis.** Static only — misses many real bugs that only appear in type-checked / compiled analysis.
 - **Correlation, not causation.** Obvious but worth stating loudly.
-- **Language bias.** LDNOOBW lists vary in quality across languages; English is richer than Slovak.
-- **Sample bias.** Stratified sampling for balanced cohorts means results don't represent "average GitHub" — they represent the contrast between two ends of the profanity distribution.
+- **Language bias.** LDNOOBW lists vary in quality across languages; English is richer than Slovak. (Emoji are Unicode-universal, so this bias is profanity-only.)
+- **Sample bias.** Stratified sampling for balanced cohorts means results don't represent "average GitHub" — they represent the contrast between two ends of the profanity distribution. (Emoji cohorts are sliced post-hoc from the same ingest data, not separately sampled.)
 
 ---
 
@@ -584,7 +640,7 @@ Deliverables produced by `analyze_results.py`:
 
 Suggested order for implementing agents to pick up the work:
 
-1. `lab/config.py` + `lab/db.py` + `lab/profanity.py` — foundations
+1. `lab/config.py` + `lab/db.py` + `lab/profanity.py` + `lab/emoji_scan.py` — foundations
 2. `lab/analyzers.py` — can be unit-tested in isolation
 3. `lab/archive_ingest.py`
 4. `lab/repo_worker.py` + `lab/sampling.py`
@@ -592,4 +648,4 @@ Suggested order for implementing agents to pick up the work:
 6. `scripts/setup_mongo.sh` + `scripts/setup_worker.sh`
 7. `lab/analyze_results.py` — write last, after we have real data shape
 
-Each module is independent enough to be built and tested in parallel once `config.py`/`db.py`/`profanity.py` exist.
+Each module is independent enough to be built and tested in parallel once `config.py`/`db.py`/`profanity.py`/`emoji_scan.py` exist.
