@@ -12,6 +12,7 @@ changes are documented before implementation.
 | [IP-001](posts/ip-001-foundations.md) | Foundations — config, MongoDB access, and document schema | ✅ Implemented | 2026-04-23 |
 | [IP-002](posts/ip-002-profanity-detection.md) | Profanity detection — text-level profanity scoring | ✅ Implemented | 2026-04-23 |
 | [IP-003](posts/ip-003-emoji-detection.md) | Emoji detection — text-level emoji extraction | ✅ Implemented | 2026-04-23 |
+| [IP-004](posts/ip-004-static-analyzers.md) | Static analyzers — single-walk source scanning + language-dispatched linters | ✅ Implemented | 2026-04-24 |
 
 
 

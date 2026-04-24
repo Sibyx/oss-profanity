@@ -142,24 +142,28 @@ The second first-class text signal. Parallels IP-002 in structure so that caller
 
 ## IP-004: Static analyzers
 
-**Module:** `oss_profanity/analyzers.py`
+**Package:** `oss_profanity/analyzers/` (subpackage — one module per responsibility, two public names)
 
-Language-dispatched code quality measurement. Runs on a checked-out repo; never builds. **Consumes both signals** (IP-002 and IP-003) through a single source-tree walk.
+Language-dispatched code quality measurement. Runs on a checked-out repo; never builds. **Consumes both text signals** (IP-002 and IP-003) through a single tree-sitter-backed source walk, and runs five external metric tools in parallel via `ThreadPoolExecutor(max_workers=4)` so broader metric coverage does not balloon per-repo wall time.
 
 **Scope:**
 
-- `detect_primary_language(repo_dir)` — file-extension histogram, pick the dominant language
-- `scan_source_tree(repo_dir)` — walk files once, skip `node_modules/`, `vendor/`, `.git/`, `dist/`, `build/`, minified files, files > 1 MB. For each comment and identifier extracted:
-  - Feed to `profanity.scan()` → `comment_profanity_hits`, `identifier_profanity_hits`
-  - Feed to `emoji_scan.extract()` → `comment_emoji_hits`, `identifier_emoji_hits`, and accumulate per-glyph counts into a Counter, pruned to top 20 before return
-  - Single pass; no repeated I/O per signal
-- Lizard wrapper — always runs, parses XML output into `lizard_avg_ccn`, `lizard_max_ccn`, `lizard_functions`
-- Ruff wrapper — Python only, parses JSON output, counts issues, normalizes per KLOC
-- ESLint wrapper — JS/TS only, runs with a baseline config at `/opt/baseline-eslint.json`, parses JSON output, counts issues, normalizes per KLOC
-- All subprocess calls wrapped with timeouts (120s for lizard/ruff, 180s for eslint)
-- `run_all(repo_dir, primary_lang) -> dict` — single entrypoint returning the full `code_analysis` sub-document (both signals + linter counts + lizard metrics)
+- `detect_primary_language(repo_dir)` — `identify`-tag histogram, pick the dominant language
+- `scan_source_tree(repo_dir)` — walk files once, skip `node_modules/`, `vendor/`, `.git/`, `dist/`, `build/`, minified files, files > 1 MB. Extraction runs through `tree-sitter-language-pack` (`(comment)` / `(identifier)` queries). For each file:
+  - Feed comments + identifiers to `profanity.scan()` → `comment_profanity_hits`, `identifier_profanity_hits`
+  - Feed to `emoji_scan.extract()` → `comment_emoji_hits`, `identifier_emoji_hits`, per-glyph Counter pruned to top `config.emoji_top_n`
+  - TODO/FIXME/HACK/XXX regex on the comment stream → `tech_debt_markers`
+  - Comment-newline accumulation → `comment_nloc`, `comment_to_code_ratio`
+  - Single parse pass per file; no repeated I/O
+- Lizard wrapper — always runs, parses XML output into `lizard_avg_ccn`, `lizard_max_ccn`, `lizard_functions`, and percentile aggregates (`ccn_p50/p90/p99`, `nloc_p90`) computed client-side from the per-function records
+- Ruff wrapper — Python only, one run with broad `--select`, JSON findings partitioned post-hoc by rule-code prefix into `ruff_bug_issues` vs `ruff_style_issues` (sum stored as `ruff_issues` for IP-001 back-compat)
+- Bandit wrapper — Python only, security scanner; reports total + high-severity counts
+- ESLint wrapper — JS/TS only, ESLint v10 flat-config (`--no-config-lookup --config /opt/baseline-eslint.config.mjs`). **ESLint + `@eslint/js` + `typescript-eslint` are version-pinned by IP-009's Dockerfile so the `recommended` rule set stays stable across cohorts.**
+- jscpd wrapper — polyglot copy-paste detection; reports `jscpd_duplicate_lines` + `jscpd_duplicate_rate`
+- All subprocess calls wrapped with timeouts (120 s for lizard/ruff/bandit, 180 s for eslint/jscpd) and executed concurrently via a thread-pool fan-out — worst-case wall time bounded by the slowest single tool, not the sum
+- `run_all(repo_dir, primary_lang) -> dict` — single entrypoint returning the full `code_analysis` sub-document (both text signals + expanded linter + complexity-percentile + duplication + security metrics)
 
-**Deliverable test:** fixture repos (tiny Python, tiny JS, tiny polyglot) with known expected outputs. Fixtures must include at least one comment that contains **both** a profane word and an emoji to confirm both signals land in their correct fields from a single walk.
+**Deliverable test:** fixture repos (tiny Python, tiny JS, tiny polyglot) with known expected outputs. Fixtures must include at least one comment that contains **both** a profane word and an emoji to confirm both signals land in their correct fields from a single walk. An additional test asserts that all parallel tool runners dispatch within a ~50 ms window (proves parallelism is not accidentally serialized).
 
 ---
 

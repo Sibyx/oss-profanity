@@ -57,10 +57,21 @@ oss-profanity/
 ├── docs/
 │   ├── DRAFT.md              # full experiment specification
 │   ├── PLAN.md               # implementation decomposition into proposals
+│   ├── CONFIGURATION.md      # all env vars + module tunables + external-binary pins
 │   └── proposals/            # IP-XXX implementation proposals
 │       ├── index.md
 │       └── posts/
 └── .venv/
+```
+
+## Configuration
+
+Every tunable (env vars, module constants, external binaries) is documented in [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md). Minimum local dev setup:
+
+```bash
+uv venv && uv pip install -r requirements-dev.txt
+export MONGO_URI=mongodb://localhost:27017/profanity_dev
+pytest
 ```
 
 ## Known limitations
