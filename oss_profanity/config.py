@@ -42,6 +42,10 @@ class Config:
     github_token: str | None
     github_user_agent: str
     git_subprocess_timeout: timedelta
+    profane_cohort_size: int
+    clean_cohort_size: int
+    sampling_min_commits: int
+    sampling_commit_bins: tuple[int, ...]
 
     @classmethod
     def from_env(cls) -> Config:
@@ -82,7 +86,44 @@ class Config:
             git_subprocess_timeout=timedelta(
                 seconds=int(os.getenv("GIT_SUBPROCESS_TIMEOUT_SEC", "300"))
             ),
+            profane_cohort_size=int(
+                os.getenv("PROFANE_COHORT_SIZE", "750")
+            ),
+            clean_cohort_size=int(os.getenv("CLEAN_COHORT_SIZE", "750")),
+            sampling_min_commits=int(
+                os.getenv("SAMPLING_MIN_COMMITS", "20")
+            ),
+            sampling_commit_bins=_parse_commit_bins(
+                os.getenv("SAMPLING_COMMIT_BINS", "20,50,200,1000")
+            ),
         )
+
+
+def _parse_commit_bins(raw: str) -> tuple[int, ...]:
+    """Parse ``SAMPLING_COMMIT_BINS`` — CSV of strictly-monotonic positive ints.
+
+    Empty / whitespace-only input falls back to the default series. Non-integer
+    tokens, non-positive values, and non-monotonic sequences raise ``ValueError``
+    at import time so misconfigured runs fail before any MongoDB writes.
+    """
+    tokens = [t.strip() for t in raw.split(",") if t.strip()]
+    if not tokens:
+        return (20, 50, 200, 1000)
+    try:
+        values = tuple(int(t) for t in tokens)
+    except ValueError as exc:
+        raise ValueError(
+            f"SAMPLING_COMMIT_BINS must be a CSV of ints; got {raw!r}"
+        ) from exc
+    if any(v <= 0 for v in values):
+        raise ValueError(
+            f"SAMPLING_COMMIT_BINS must be positive; got {values}"
+        )
+    if any(values[i] >= values[i + 1] for i in range(len(values) - 1)):
+        raise ValueError(
+            f"SAMPLING_COMMIT_BINS must be strictly monotonic; got {values}"
+        )
+    return values
 
 
 config: Config = Config.from_env()

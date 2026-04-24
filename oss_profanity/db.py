@@ -21,6 +21,7 @@ from pymongo.database import Database
 from .config import config
 
 Status = Literal["seen", "pending", "claimed", "done", "failed", "skipped"]
+Cohort = Literal["profane", "clean"]
 
 
 class CommitStats(BaseModel):
@@ -104,6 +105,7 @@ class Repo(BaseModel):
     first_seen_at: datetime
     commit_stats: CommitStats = Field(default_factory=CommitStats)
     status: Status = "seen"
+    cohort: Cohort | None = None
     claimed_by: str | None = None
     claimed_at: datetime | None = None
     primary_language: str | None = None

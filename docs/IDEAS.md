@@ -82,6 +82,18 @@ Stage 4's `claim + fixed TTL + reclaim_stale` is the simplest form of a distribu
 
 ---
 
+## Emoji-first cohort sampling
+
+**Source:** [IP-006](proposals/posts/ip-006-cohort-sampling.md) Q5 resolution.
+
+IP-006 samples two profanity-based cohorts (top-750 `profanity_rate` vs matched clean). Emoji signal is retained on every deep-analysed repo, but emoji cohorts are sliced *post-hoc* in IP-008 rather than sampled at Stage 3 — because doubling the sampling pass would either double the IP-007 worker-time budget (4 cohorts × 750 = 3,000 vs 1,500) or halve each cohort.
+
+A follow-up study could flip the primary axis: draw the top-750 high-emoji repos and a commit-count-matched zero-emoji cohort, and run the same Mann-Whitney battery. The design is symmetric — the `_select_profane` / `_select_clean_matched` pair becomes `_select_emoji_high` / `_select_emoji_low_matched`, `cohort` gains `"emoji_high"` / `"emoji_low"` labels, and every existing helper (binning, promote, report) is reused unchanged. Implementation cost is roughly one day; the bigger cost is another 2 hours of worker time for the new 1,500-repo cohort.
+
+**Trigger to promote:** IP-008's post-hoc emoji slice shows meaningful correlation between emoji rate and any quality metric (comparable in magnitude to the profanity correlation). At that point a dedicated matched-cohort analysis is worth doing cleanly rather than relying on the post-hoc slice, which is statistically valid but visually harder to present to a non-expert audience.
+
+---
+
 ## Language-aware identifier splitting
 
 **Source:** [IP-004](proposals/posts/ip-004-static-analyzers.md) Future Considerations.

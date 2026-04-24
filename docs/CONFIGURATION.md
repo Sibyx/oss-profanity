@@ -31,6 +31,10 @@ Loaded once at import time into a frozen dataclass in [`oss_profanity/config.py`
 | `GITHUB_TOKEN`         | *(optional)*                                               | Personal access token for GitHub REST enrichment in Stage 4 (IP-007); unauth mode works but rate-limits at 60/hour per IP |
 | `GITHUB_USER_AGENT`    | `oss-profanity/0.1 (jakub.dubec@stuba.sk)`                 | Sent on every GitHub API call so Cloudflare / GitHub abuse team can identify us        |
 | `GIT_SUBPROCESS_TIMEOUT_SEC` | `300`                                                | Per-call timeout for each `git` subprocess in Stage 4 (clone / rev-list / checkout)    |
+| `PROFANE_COHORT_SIZE`        | `750`                                                | IP-006: cohort A target size (top-N by `profanity_rate` desc) — raise to widen the study |
+| `CLEAN_COHORT_SIZE`          | `750`                                                | IP-006: cohort B target size (matched clean draw); normally identical to `PROFANE_COHORT_SIZE` |
+| `SAMPLING_MIN_COMMITS`       | `20`                                                 | IP-006: minimum `total_commits_in_window` for cohort eligibility (DRAFT §2 floor)      |
+| `SAMPLING_COMMIT_BINS`       | `20,50,200,1000`                                     | IP-006: log-spaced commit-count breakpoints for bin-matching cohort B to cohort A; CSV of strictly-monotonic ints |
 
 ### `.env` file support
 

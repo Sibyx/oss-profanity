@@ -35,6 +35,10 @@ def test_defaults_applied_with_only_mongo_uri(
         "GITHUB_TOKEN",
         "GITHUB_USER_AGENT",
         "GIT_SUBPROCESS_TIMEOUT_SEC",
+        "PROFANE_COHORT_SIZE",
+        "CLEAN_COHORT_SIZE",
+        "SAMPLING_MIN_COMMITS",
+        "SAMPLING_COMMIT_BINS",
     ):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("MONGO_URI", "mongodb://localhost:27017/test")
@@ -56,6 +60,10 @@ def test_defaults_applied_with_only_mongo_uri(
     assert cfg.git_subprocess_timeout.total_seconds() == 300
     assert isinstance(cfg.bot_regex, re.Pattern)
     assert cfg.bot_regex.search("dependabot[bot]") is not None
+    assert cfg.profane_cohort_size == 750
+    assert cfg.clean_cohort_size == 750
+    assert cfg.sampling_min_commits == 20
+    assert cfg.sampling_commit_bins == (20, 50, 200, 1000)
 
 
 def test_env_overrides_apply(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -148,3 +156,61 @@ def test_missing_dotenv_is_a_noop(
 
     cfg = Config.from_env()
     assert cfg.mongo_uri == "mongodb://localhost:27017/test"
+
+
+# ---------- IP-006 sampling knobs ----------
+
+
+def test_sampling_env_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MONGO_URI", "mongodb://localhost:27017/test")
+    monkeypatch.setenv("PROFANE_COHORT_SIZE", "1000")
+    monkeypatch.setenv("CLEAN_COHORT_SIZE", "1000")
+    monkeypatch.setenv("SAMPLING_MIN_COMMITS", "10")
+    monkeypatch.setenv("SAMPLING_COMMIT_BINS", "10,100,1000")
+
+    cfg = Config.from_env()
+
+    assert cfg.profane_cohort_size == 1000
+    assert cfg.clean_cohort_size == 1000
+    assert cfg.sampling_min_commits == 10
+    assert cfg.sampling_commit_bins == (10, 100, 1000)
+
+
+def test_sampling_commit_bins_empty_string_falls_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MONGO_URI", "mongodb://localhost:27017/test")
+    monkeypatch.setenv("SAMPLING_COMMIT_BINS", "   ")
+
+    cfg = Config.from_env()
+    assert cfg.sampling_commit_bins == (20, 50, 200, 1000)
+
+
+def test_sampling_commit_bins_rejects_non_monotonic(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MONGO_URI", "mongodb://localhost:27017/test")
+    monkeypatch.setenv("SAMPLING_COMMIT_BINS", "20,50,40,1000")
+
+    with pytest.raises(ValueError, match="monotonic"):
+        Config.from_env()
+
+
+def test_sampling_commit_bins_rejects_non_positive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MONGO_URI", "mongodb://localhost:27017/test")
+    monkeypatch.setenv("SAMPLING_COMMIT_BINS", "0,50,200")
+
+    with pytest.raises(ValueError, match="positive"):
+        Config.from_env()
+
+
+def test_sampling_commit_bins_rejects_non_integer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MONGO_URI", "mongodb://localhost:27017/test")
+    monkeypatch.setenv("SAMPLING_COMMIT_BINS", "20,fifty,200")
+
+    with pytest.raises(ValueError, match="CSV of ints"):
+        Config.from_env()
