@@ -7,7 +7,7 @@ reclamation; everything that IP-001 promises end-to-end.
 
 from __future__ import annotations
 
-import importlib
+import os
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -15,14 +15,29 @@ import pytest
 
 @pytest.fixture
 def db_module():
-    """Reload db so it picks up the TEST_MONGO_URI-backed config."""
-    import oss_profanity.config
-    import oss_profanity.db
+    """Point the shared config at ``TEST_MONGO_URI`` for this test's scope.
 
-    importlib.reload(oss_profanity.config)
-    mod = importlib.reload(oss_profanity.db)
-    mod._client = None  # force a fresh MongoClient + ensure_indexes on first get_db
-    return mod
+    We mutate the ``oss_profanity.config.config`` singleton in place
+    rather than ``importlib.reload`` the module, because other modules
+    (``_runner``, ``archive_ingest``) import ``config`` by name at their
+    own import time — reloading would swap the singleton out from under
+    them and cause flaky cross-test failures.
+    """
+    import oss_profanity.config as cfg_module
+    import oss_profanity.db as db_mod
+
+    uri = os.environ.get("TEST_MONGO_URI", cfg_module.config.mongo_uri)
+    original_uri = cfg_module.config.mongo_uri
+    object.__setattr__(cfg_module.config, "mongo_uri", uri)
+    original_client = db_mod._client
+    db_mod._client = None
+    try:
+        yield db_mod
+    finally:
+        object.__setattr__(cfg_module.config, "mongo_uri", original_uri)
+        if db_mod._client is not None:
+            db_mod._client.close()
+        db_mod._client = original_client
 
 
 def _insert_repo(db, repo_id: int, **overrides) -> None:

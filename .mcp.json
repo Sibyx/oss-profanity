@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "MongoDB": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "mongodb-mcp-server@latest"],
+      "env": {
+        "MDB_MCP_CONNECTION_STRING": "mongodb://localhost:27017"
+      }
+    }
+  }
+}
+

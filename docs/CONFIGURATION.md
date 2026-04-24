@@ -15,19 +15,19 @@ Every tunable in the oss-profanity pipeline, with defaults, source files, and wh
 
 Loaded once at import time into a frozen dataclass in [`oss_profanity/config.py`](../oss_profanity/config.py). Every process (ingest, worker, aggregation) must have at minimum `MONGO_URI` set. Missing required vars raise `ValueError` at import — that's the intended failure mode for batch jobs.
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `MONGO_URI` | *(required)* | PyMongo connection string, e.g. `mongodb://10.150.104.106:27017/profanity` |
-| `WORKER_CONCURRENCY` | `12` | `multiprocessing.Pool` size per worker host |
-| `GHA_START` | `2020-06-01-00` | First hourly GH Archive file to ingest |
-| `GHA_END` | `2020-06-30-23` | Last hourly GH Archive file to ingest |
-| `SCRATCH_DIR` | `/scratch` | Where repo clones land; must have headroom for the largest repo × `WORKER_CONCURRENCY` |
-| `BOT_REGEX` | `(bot\|dependabot\|renovate\|github-actions\|greenkeeper)` | Case-insensitive regex; matching authors' commits are dropped |
-| `MAX_REPO_SIZE_MB` | `2048` | GitHub API pre-check; larger repos are skipped before clone |
-| `PER_REPO_TIMEOUT_SEC` | `600` | Hard cap per repo in Stage 4; exceeds → `status=failed`, `failure_reason=timeout` |
-| `STALE_CLAIM_TTL_MIN` | `20` | Claims older than this are reclaimed as `pending` (handles dead workers) |
-| `EMOJI_TOP_N` | `20` | Size of per-repo `emoji_top` counter after truncation |
-| `SAMPLE_PROFANE_N` | `5` | Max profane commit messages retained per repo for talk material |
+| Variable               | Default                                                    | Purpose                                                                                |
+|------------------------|------------------------------------------------------------|----------------------------------------------------------------------------------------|
+| `MONGO_URI`            | *(required)*                                               | PyMongo connection string, e.g. `mongodb://10.150.104.106:27017/profanity`             |
+| `WORKER_CONCURRENCY`   | `12`                                                       | `multiprocessing.Pool` size per worker host                                            |
+| `GHA_START`            | `2020-06-01-00`                                            | First hourly GH Archive file to ingest                                                 |
+| `GHA_END`              | `2020-06-30-23`                                            | Last hourly GH Archive file to ingest                                                  |
+| `SCRATCH_DIR`          | `/scratch`                                                 | Where repo clones land; must have headroom for the largest repo × `WORKER_CONCURRENCY` |
+| `BOT_REGEX`            | `(bot\|dependabot\|renovate\|github-actions\|greenkeeper)` | Case-insensitive regex; matching authors' commits are dropped                          |
+| `MAX_REPO_SIZE_MB`     | `2048`                                                     | GitHub API pre-check; larger repos are skipped before clone                            |
+| `PER_REPO_TIMEOUT_SEC` | `600`                                                      | Hard cap per repo in Stage 4; exceeds → `status=failed`, `failure_reason=timeout`      |
+| `STALE_CLAIM_TTL_MIN`  | `20`                                                       | Claims older than this are reclaimed as `pending` (handles dead workers)               |
+| `EMOJI_TOP_N`          | `20`                                                       | Size of per-repo `emoji_top` counter after truncation                                  |
+| `SAMPLE_PROFANE_N`     | `5`                                                        | Max profane commit messages retained per repo for talk material                        |
 
 ### Local development
 
