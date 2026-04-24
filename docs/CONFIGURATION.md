@@ -28,6 +28,9 @@ Loaded once at import time into a frozen dataclass in [`oss_profanity/config.py`
 | `STALE_CLAIM_TTL_MIN`  | `20`                                                       | Claims older than this are reclaimed as `pending` (handles dead workers)               |
 | `EMOJI_TOP_N`          | `20`                                                       | Size of per-repo `emoji_top` counter after truncation                                  |
 | `SAMPLE_PROFANE_N`     | `5`                                                        | Max profane commit messages retained per repo for talk material                        |
+| `GITHUB_TOKEN`         | *(optional)*                                               | Personal access token for GitHub REST enrichment in Stage 4 (IP-007); unauth mode works but rate-limits at 60/hour per IP |
+| `GITHUB_USER_AGENT`    | `oss-profanity/0.1 (jakub.dubec@stuba.sk)`                 | Sent on every GitHub API call so Cloudflare / GitHub abuse team can identify us        |
+| `GIT_SUBPROCESS_TIMEOUT_SEC` | `300`                                                | Per-call timeout for each `git` subprocess in Stage 4 (clone / rev-list / checkout)    |
 
 ### `.env` file support
 
@@ -65,6 +68,66 @@ environment:
 ### OpenStack deployment (IP-010)
 
 Set in `/etc/environment` or a systemd drop-in; the setup scripts template these into place.
+
+## GitHub token provisioning (IP-007)
+
+Stage 4 workers make two authenticated REST calls per repo — `GET /repos/{full_name}` and `GET /repos/{full_name}/languages` — to enrich the `Repo.github_metadata` sub-document with stars, forks, topics, license, size, archived / disabled flags, byte-counts per language, and timestamps. The token raises the REST rate limit from 60/hour (unauth, per IP) to 5,000/hour (authenticated, per token). GitHub Pro does **not** raise REST limits; Pro raises Actions minutes and storage, not REST.
+
+### Recommended: fine-grained personal access token
+
+Fine-grained PATs (introduced 2022) have narrower blast radius than classic PATs.
+
+1. Go to [github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new).
+2. **Token name:** `oss-profanity-stage-4-worker`
+3. **Expiration:** 30 days (matches the experiment timeframe; never leave tokens provisioned beyond project lifetime).
+4. **Repository access:** "Public Repositories (read-only)". No need to enumerate repositories — this pseudo-scope grants read access to any public repo via REST.
+5. **Account permissions:** leave at defaults (none required for public data).
+6. **Repository permissions:** leave at defaults (none required for public data).
+7. Click **Generate token** and copy the value once — GitHub shows it only at creation.
+8. Set it as `GITHUB_TOKEN=github_pat_...` in the worker's environment.
+
+### Alternative: classic personal access token
+
+Use this only if the fine-grained UI is unavailable (e.g. some GitHub Enterprise accounts).
+
+1. Go to [github.com/settings/tokens/new](https://github.com/settings/tokens/new).
+2. **Note:** `oss-profanity-stage-4-worker`
+3. **Expiration:** 30 days.
+4. **Scopes:** **select none.** Classic tokens with zero scopes have the same visibility as unauthenticated requests for public repos, but count against the authenticated 5,000/hour rate limit rather than the 60/hour one.
+5. Generate, copy, and set `GITHUB_TOKEN=ghp_...` in the worker environment.
+
+### Verify the token is live
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer $GITHUB_TOKEN" \
+  -H "Accept: application/vnd.github+json" \
+  -H "X-GitHub-Api-Version: 2022-11-28" \
+  https://api.github.com/rate_limit \
+  | python -c 'import json, sys; d = json.load(sys.stdin); print(d["resources"]["core"])'
+```
+
+Expected output fragment: `{'limit': 5000, 'remaining': 5000, ...}`. If `'limit': 60` appears, the token is not being read (env-var typo, missing `Authorization` header) — fix before running Stage 4.
+
+### Security notes
+
+- **Never commit the token.** It goes in `.env` (git-ignored) or a secret-manager env var on the deploy target. `.env.example` documents the variable name with an empty value.
+- **Logs MUST NOT echo the `Authorization` header.** `httpx`'s default error messages redact credential headers; `_github.py` unit tests assert no token bytes appear in log output.
+- **Rotate on suspected exposure** via the GitHub UI. Revoking the token immediately invalidates any in-flight workers using it.
+- **Single shared token across all 36 workers is deliberate.** The 5,000/hour budget is per token; at 80 calls/minute shared across the pool we sit at ~1% of the secondary rate limit. Per-worker tokens would multiply the budget but add provisioning complexity that isn't justified at our scale.
+
+### Rate-limit budget reference
+
+At Stage 4 size (1,500 cohort repos, 2 calls per repo):
+
+| Dimension | Value |
+|---|---:|
+| Total REST calls per run | 3,000 |
+| Duration | 5-7 h |
+| Calls per hour | ~430-600 (9-12% of 5,000/h ceiling) |
+| Calls per minute (36 workers) | ~8-10 (~1% of 900/min secondary limit) |
+
+Overnight capacity per token is 30,000 repos at two calls per repo — 20× the current cohort target. Full-population enrichment (~1 M repos) would take ~34 nights at this scope and is explicitly out of scope.
 
 ## Module-level constants
 

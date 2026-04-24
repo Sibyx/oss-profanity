@@ -477,7 +477,7 @@ I guess we do not need a complicated module for this.
 
 **Answer**:
 ```
-Not sure if I am properly u
+Not sure if I am properly understand here. 
 ```
 
 **Resolution**:

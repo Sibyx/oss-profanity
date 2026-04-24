@@ -23,6 +23,9 @@ from dotenv import load_dotenv
 load_dotenv(override=False)
 
 
+_DEFAULT_USER_AGENT = "oss-profanity/0.1 (jakub.dubec@stuba.sk)"
+
+
 @dataclass(frozen=True)
 class Config:
     mongo_uri: str
@@ -36,6 +39,9 @@ class Config:
     stale_claim_ttl: timedelta
     emoji_top_n: int
     sample_profane_n: int
+    github_token: str | None
+    github_user_agent: str
+    git_subprocess_timeout: timedelta
 
     @classmethod
     def from_env(cls) -> Config:
@@ -46,6 +52,7 @@ class Config:
                 "MONGO_URI is required but not set in the environment"
             ) from exc
 
+        token = os.getenv("GITHUB_TOKEN")
         return cls(
             mongo_uri=mongo_uri,
             worker_concurrency=int(os.getenv("WORKER_CONCURRENCY", "12")),
@@ -68,6 +75,13 @@ class Config:
             ),
             emoji_top_n=int(os.getenv("EMOJI_TOP_N", "20")),
             sample_profane_n=int(os.getenv("SAMPLE_PROFANE_N", "5")),
+            github_token=token if token else None,
+            github_user_agent=os.getenv(
+                "GITHUB_USER_AGENT", _DEFAULT_USER_AGENT
+            ),
+            git_subprocess_timeout=timedelta(
+                seconds=int(os.getenv("GIT_SUBPROCESS_TIMEOUT_SEC", "300"))
+            ),
         )
 
 

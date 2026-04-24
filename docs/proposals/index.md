@@ -15,6 +15,7 @@ changes are documented before implementation.
 | [IP-004](posts/ip-004-static-analyzers.md) | Static analyzers — single-walk source scanning + language-dispatched linters | ✅ Implemented | 2026-04-24 |
 | [IP-005](posts/ip-005-gh-archive-ingest.md) | GH Archive ingest — Stage 1+2 streaming + scoring pipeline | ✅ Implemented | 2026-04-24 |
 | [IP-006](posts/ip-006-cohort-sampling.md) | Cohort sampling — Stage 3 stratified cohort promotion | 📝 Draft | 2026-04-24 |
+| [IP-007](posts/ip-007-repo-worker.md) | Repo worker — Stage 4 claim-clone-analyze loop + GitHub metadata enrichment | ✅ Implemented | 2026-04-24 |
 
 
 

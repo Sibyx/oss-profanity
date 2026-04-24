@@ -32,6 +32,9 @@ def test_defaults_applied_with_only_mongo_uri(
         "STALE_CLAIM_TTL_MIN",
         "EMOJI_TOP_N",
         "SAMPLE_PROFANE_N",
+        "GITHUB_TOKEN",
+        "GITHUB_USER_AGENT",
+        "GIT_SUBPROCESS_TIMEOUT_SEC",
     ):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("MONGO_URI", "mongodb://localhost:27017/test")
@@ -48,6 +51,9 @@ def test_defaults_applied_with_only_mongo_uri(
     assert cfg.stale_claim_ttl.total_seconds() == 20 * 60
     assert cfg.emoji_top_n == 20
     assert cfg.sample_profane_n == 5
+    assert cfg.github_token is None
+    assert cfg.github_user_agent.startswith("oss-profanity/")
+    assert cfg.git_subprocess_timeout.total_seconds() == 300
     assert isinstance(cfg.bot_regex, re.Pattern)
     assert cfg.bot_regex.search("dependabot[bot]") is not None
 
@@ -57,12 +63,28 @@ def test_env_overrides_apply(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("WORKER_CONCURRENCY", "4")
     monkeypatch.setenv("EMOJI_TOP_N", "50")
     monkeypatch.setenv("STALE_CLAIM_TTL_MIN", "15")
+    monkeypatch.setenv("GITHUB_TOKEN", "ghp_fake_token")
+    monkeypatch.setenv("GITHUB_USER_AGENT", "test-agent/1.0")
+    monkeypatch.setenv("GIT_SUBPROCESS_TIMEOUT_SEC", "120")
 
     cfg = Config.from_env()
 
     assert cfg.worker_concurrency == 4
     assert cfg.emoji_top_n == 50
     assert cfg.stale_claim_ttl.total_seconds() == 15 * 60
+    assert cfg.github_token == "ghp_fake_token"
+    assert cfg.github_user_agent == "test-agent/1.0"
+    assert cfg.git_subprocess_timeout.total_seconds() == 120
+
+
+def test_empty_github_token_is_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An empty GITHUB_TOKEN env var is treated as unset (not an empty string)."""
+    monkeypatch.setenv("MONGO_URI", "mongodb://localhost:27017/test")
+    monkeypatch.setenv("GITHUB_TOKEN", "")
+
+    cfg = Config.from_env()
+
+    assert cfg.github_token is None
 
 
 def test_missing_mongo_uri_raises(monkeypatch: pytest.MonkeyPatch) -> None:

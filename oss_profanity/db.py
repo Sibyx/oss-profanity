@@ -58,6 +58,44 @@ class CodeAnalysis(BaseModel):
     lizard_functions: int | None = None
 
 
+class GitHubMetadata(BaseModel):
+    """GitHub REST API `/repos/{full_name}` + `/languages` payload (IP-007).
+
+    Field-by-field descriptions live in ``docs/SCHEMA.md``. ``extra="allow"``
+    absorbs future GitHub response-shape changes without code updates.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    fetched_at: datetime
+    # Popularity / activity
+    stargazers_count: int = 0
+    forks_count: int = 0
+    watchers_count: int = 0
+    subscribers_count: int = 0
+    open_issues_count: int = 0
+    # Classification
+    topics: list[str] = Field(default_factory=list)
+    license_spdx: str | None = None
+    language: str | None = None
+    languages_bytes: dict[str, int] = Field(default_factory=dict)
+    # Size + branch
+    size_kb: int = 0
+    default_branch: str | None = None
+    # Fork relationship
+    fork: bool = False
+    parent_full_name: str | None = None
+    # Status flags
+    archived: bool = False
+    disabled: bool = False
+    # Timestamps
+    created_at: datetime | None = None
+    pushed_at: datetime | None = None
+    updated_at: datetime | None = None
+    # Free text
+    description: str | None = None
+
+
 class Repo(BaseModel):
     model_config = ConfigDict(extra="allow", populate_by_name=True)
 
@@ -70,6 +108,7 @@ class Repo(BaseModel):
     claimed_at: datetime | None = None
     primary_language: str | None = None
     code_analysis: CodeAnalysis | None = None
+    github_metadata: GitHubMetadata | None = None
     failure_reason: str | None = None
     processing_time_sec: float | None = None
 
