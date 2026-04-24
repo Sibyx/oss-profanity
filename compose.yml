@@ -1,11 +1,97 @@
+# IP-009: role-based compose profiles. `mongo` is always-on (no profile) for the
+# operator's in-flight local data; ingest/sampling/worker/assertions are gated
+# behind their respective profiles so `docker compose up` without a profile
+# never disturbs production data.
+#
+# Usage:
+#   docker compose up mongo                      # start local Mongo only
+#   docker compose --profile ingest run --rm ingest
+#   docker compose --profile worker up --scale worker=3 worker
+#   ./scripts/smoke.sh                           # full end-to-end smoke
+#
+# `assertions` is the composite profile that boots the full chain
+# (ingest → sampling → worker → assertions) via service_completed_successfully
+# gates and an exit-code-from propagation to the shell wrapper.
+
 services:
+  # Local dockerised Mongo for unit-test runs that don't want to touch the
+  # operator's native Mongo on :27017. Host port is 27019 — **not** 27018,
+  # because 27018 is reserved for the SSH tunnel to the faculty / production
+  # Mongo during data migration. 27017 is the operator's native local Mongo
+  # (used by the IP-009 smoke via host.docker.internal:27017).
   mongo:
     image: mongo:7
     restart: unless-stopped
     ports:
-      - "27018:27017"
+      - "27019:27017"
     volumes:
       - mongo_data:/data/db
 
+  ingest:
+    image: oss-profanity:smoke
+    profiles: [ingest, assertions]
+    build: .
+    environment:
+      MONGO_URI: mongodb://host.docker.internal:27017/profanity_smoke
+      GHA_START: "2020-06-01-00"
+      GHA_END: "2020-06-01-03"
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_USER_AGENT: ${GITHUB_USER_AGENT:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["python", "-m", "oss_profanity.archive_ingest"]
+
+  sampling:
+    image: oss-profanity:smoke
+    profiles: [assertions]
+    build: .
+    depends_on:
+      ingest:
+        condition: service_completed_successfully
+    environment:
+      MONGO_URI: mongodb://host.docker.internal:27017/profanity_smoke
+      PROFANE_COHORT_SIZE: "5"
+      CLEAN_COHORT_SIZE: "5"
+      SAMPLING_MIN_COMMITS: "1"
+      SAMPLING_COMMIT_BINS: "1,5,20"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["python", "-m", "oss_profanity.sampling"]
+
+  worker:
+    image: oss-profanity:smoke
+    profiles: [worker, assertions]
+    build: .
+    depends_on:
+      sampling:
+        condition: service_completed_successfully
+    deploy:
+      replicas: 2
+    environment:
+      MONGO_URI: mongodb://host.docker.internal:27017/profanity_smoke
+      WORKER_CONCURRENCY: "2"
+      SCRATCH_DIR: /scratch
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_USER_AGENT: ${GITHUB_USER_AGENT:-}
+      PER_REPO_TIMEOUT_SEC: "300"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - scratch:/scratch
+
+  assertions:
+    image: oss-profanity:smoke
+    profiles: [assertions]
+    build: .
+    depends_on:
+      worker:
+        condition: service_completed_successfully
+    environment:
+      MONGO_URI: mongodb://host.docker.internal:27017/profanity_smoke
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["python", "/app/dockerfiles/assertions.py"]
+
 volumes:
   mongo_data:
+  scratch:

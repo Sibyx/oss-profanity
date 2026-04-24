@@ -5,8 +5,9 @@ emoji>=2.15
 tree-sitter>=0.23
 tree-sitter-language-pack>=1.6
 identify>=2.6
-lizard>=1.22
-bandit>=1.7
+lizard==1.17.25
+bandit==1.9.4
+ruff==0.15.12
 httpx[http2]>=0.28
 orjson>=3.11
 python-dotenv>=1.0

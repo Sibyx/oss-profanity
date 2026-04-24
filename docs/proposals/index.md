@@ -16,7 +16,7 @@ changes are documented before implementation.
 | [IP-005](posts/ip-005-gh-archive-ingest.md) | GH Archive ingest — Stage 1+2 streaming + scoring pipeline | ✅ Implemented | 2026-04-24 |
 | [IP-006](posts/ip-006-cohort-sampling.md) | Cohort sampling — Stage 3 stratified cohort promotion | ✅ Implemented | 2026-04-24 |
 | [IP-007](posts/ip-007-repo-worker.md) | Repo worker — Stage 4 claim-clone-analyze loop + GitHub metadata enrichment | ✅ Implemented | 2026-04-24 |
-| [IP-009](posts/ip-009-docker-test-harness.md) | Docker test harness — green-gate before OpenStack deployment | 📝 Draft | 2026-04-24 |
+| [IP-009](posts/ip-009-docker-test-harness.md) | Docker test harness — green-gate before OpenStack deployment | ✅ Implemented | 2026-04-24 |
 
 
 

@@ -222,10 +222,10 @@ Bandit runs with its default rule set via `-r --exit-zero`. To restrict, add `-s
 | `_DEFAULT_CONFIG` | `/opt/baseline-eslint.config.mjs` | Never in this module — IP-009 ships the config |
 | `run(timeout=...)` | `180` s | ESLint is the slowest tool; real-data calibration |
 
-**The baseline config itself lives in the Docker image**, not the repo. IP-009's `Dockerfile` writes:
+**The baseline config lives at [`dockerfiles/eslint.config.mjs`](../dockerfiles/eslint.config.mjs) in the repo** and is copied into `/opt/baseline-eslint.config.mjs` during image build (IP-009 Q8). Committing it to the repo keeps every `recommended`-rule change diff-reviewable via normal git history.
 
 ```js
-// /opt/baseline-eslint.config.mjs
+// dockerfiles/eslint.config.mjs
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 export default [
@@ -235,7 +235,7 @@ export default [
 ];
 ```
 
-`@eslint/js`, `typescript-eslint`, and `eslint` itself are **version-pinned** in the Dockerfile so `recommended` means the same thing on every worker.
+`@eslint/js`, `typescript-eslint`, and `eslint` itself are **exact-pinned** in the Dockerfile (IP-009 Q6: `eslint@10.2.1`, `@eslint/js@10.0.1`, `typescript-eslint@8.59.0`) so `recommended` means the same thing on every worker. Bump the config and the pins together.
 
 ### jscpd wrapper — [`_jscpd.py`](../oss_profanity/analyzers/_jscpd.py)
 

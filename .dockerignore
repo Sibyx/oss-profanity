@@ -1,0 +1,41 @@
+.git/
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Project-local scratch / caches
+data/
+scratch/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+
+# Secrets / local envs
+.env
+.env.local
+
+# Big binary dumps not needed in the image
+profanity-dump.gz
+profanity-dump-sampled.gz
+
+# Claude / tooling
+.claude/
+
+# Docs do not belong in the runtime image
+docs/
