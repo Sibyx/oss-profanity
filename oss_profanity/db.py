@@ -31,6 +31,7 @@ class CommitStats(BaseModel):
     languages_detected: dict[str, int] = Field(default_factory=dict)
     profanity_hits: int = 0
     profanity_rate: float = 0.0
+    profanity_top: dict[str, int] = Field(default_factory=dict)
     sample_profane_messages: list[str] = Field(default_factory=list)
     emoji_hits: int = 0
     emoji_rate: float = 0.0

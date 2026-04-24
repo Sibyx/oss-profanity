@@ -1,10 +1,10 @@
-"""One-shot finalizer: compute rates + prune ``emoji_top``.
+"""One-shot finalizer: compute rates + prune ``emoji_top`` / ``profanity_top``.
 
 Runs after every file in the window is ``done``. Iterates the ``repos``
 collection, computes ``commit_stats.profanity_rate`` / ``emoji_rate``
-from the accumulated totals, and truncates ``commit_stats.emoji_top``
-to the top ``emoji_top_n`` entries so per-doc size stays bounded on
-heavy-emoji repos.
+from the accumulated totals, and truncates both ``commit_stats.emoji_top``
+and ``commit_stats.profanity_top`` to the top ``emoji_top_n`` entries so
+per-doc size stays bounded on heavy-signal repos.
 
 Idempotent: running twice produces identical field values.
 """
@@ -32,7 +32,7 @@ class _FinalizerStats:
 def finalize(
     db: Database[dict[str, Any]], emoji_top_n: int
 ) -> _FinalizerStats:
-    """Set rates on every repo; prune ``emoji_top`` to the top N glyphs."""
+    """Set rates on every repo; prune ``emoji_top`` and ``profanity_top`` to top-N."""
     processed = 0
     updated = 0
     pending_ops: list[UpdateOne] = []
@@ -55,15 +55,16 @@ def finalize(
             ),
         }
 
-        emoji_top = stats.get("emoji_top") or {}
-        if isinstance(emoji_top, dict) and len(emoji_top) > emoji_top_n:
-            pruned = dict(
-                sorted(
-                    emoji_top.items(),
-                    key=lambda kv: (-(int(kv[1]) if isinstance(kv[1], int) else 0), kv[0]),
-                )[:emoji_top_n]
-            )
-            set_fields["commit_stats.emoji_top"] = pruned
+        for field_name in ("emoji_top", "profanity_top"):
+            top = stats.get(field_name) or {}
+            if isinstance(top, dict) and len(top) > emoji_top_n:
+                pruned = dict(
+                    sorted(
+                        top.items(),
+                        key=lambda kv: (-(int(kv[1]) if isinstance(kv[1], int) else 0), kv[0]),
+                    )[:emoji_top_n]
+                )
+                set_fields[f"commit_stats.{field_name}"] = pruned
 
         pending_ops.append(
             UpdateOne({"_id": doc["_id"]}, {"$set": set_fields})

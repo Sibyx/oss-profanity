@@ -14,7 +14,7 @@ def _observe(
     repo_name: str = "alice/repo",
     author: str | None = "alice@example.com",
     language: str = "en",
-    profanity_hit_count: int = 0,
+    profanity_occurrences: list[str] | None = None,
     emoji_occurrences: list[str] | None = None,
     sample_message: str | None = None,
     sample_cap: int = 5,
@@ -25,7 +25,7 @@ def _observe(
         first_seen_at=datetime(2020, 6, 1, 12, tzinfo=timezone.utc),
         author=author,
         language=language,
-        profanity_hit_count=profanity_hit_count,
+        profanity_occurrences=profanity_occurrences or [],
         emoji_occurrences=emoji_occurrences or [],
         sample_message=sample_message,
         sample_cap=sample_cap,
@@ -34,13 +34,14 @@ def _observe(
 
 def test_single_observation_builds_one_upsert() -> None:
     agg = _PerFileAggregator()
-    _observe(agg, 42, profanity_hit_count=1, emoji_occurrences=["🚀"])
+    _observe(agg, 42, profanity_occurrences=["shit"], emoji_occurrences=["🚀"])
     ops = agg.to_bulk_ops(sample_cap=5)
     assert len(ops) == 1
     payload = ops[0]._doc  # type: ignore[attr-defined]
     inc = payload["$inc"]
     assert inc["commit_stats.total_commits_in_window"] == 1
     assert inc["commit_stats.profanity_hits"] == 1
+    assert inc["commit_stats.profanity_top.shit"] == 1
     assert inc["commit_stats.emoji_hits"] == 1
     assert inc["commit_stats.emoji_commits"] == 1
     assert inc["commit_stats.emoji_top.🚀"] == 1
@@ -50,15 +51,32 @@ def test_single_observation_builds_one_upsert() -> None:
 def test_multiple_observations_same_repo_accumulate() -> None:
     agg = _PerFileAggregator()
     for _ in range(3):
-        _observe(agg, 42, profanity_hit_count=2, emoji_occurrences=["🚀", "🐛"])
+        _observe(
+            agg,
+            42,
+            profanity_occurrences=["shit", "damn"],
+            emoji_occurrences=["🚀", "🐛"],
+        )
     assert len(agg) == 1
     inc = agg.to_bulk_ops(sample_cap=5)[0]._doc["$inc"]  # type: ignore[attr-defined]
     assert inc["commit_stats.total_commits_in_window"] == 3
     assert inc["commit_stats.profanity_hits"] == 6
+    assert inc["commit_stats.profanity_top.shit"] == 3
+    assert inc["commit_stats.profanity_top.damn"] == 3
     assert inc["commit_stats.emoji_hits"] == 6
     assert inc["commit_stats.emoji_commits"] == 3
     assert inc["commit_stats.emoji_top.🚀"] == 3
     assert inc["commit_stats.emoji_top.🐛"] == 3
+
+
+def test_profanity_top_accumulates_per_word() -> None:
+    agg = _PerFileAggregator()
+    _observe(agg, 1, profanity_occurrences=["shit", "damn"])
+    _observe(agg, 1, profanity_occurrences=["shit"])
+    inc = agg.to_bulk_ops(sample_cap=5)[0]._doc["$inc"]  # type: ignore[attr-defined]
+    assert inc["commit_stats.profanity_hits"] == 3
+    assert inc["commit_stats.profanity_top.shit"] == 2
+    assert inc["commit_stats.profanity_top.damn"] == 1
 
 
 def test_emoji_commits_only_counted_once_per_commit() -> None:
@@ -102,7 +120,7 @@ def test_sample_profane_capped_at_sample_cap() -> None:
         _observe(
             agg,
             1,
-            profanity_hit_count=1,
+            profanity_occurrences=["shit"],
             sample_message=f"profane message {i}",
             sample_cap=3,
         )
@@ -120,7 +138,7 @@ def test_sample_profane_capped_at_sample_cap() -> None:
 
 def test_no_sample_push_when_no_profane_messages() -> None:
     agg = _PerFileAggregator()
-    _observe(agg, 1, profanity_hit_count=0, sample_message=None)
+    _observe(agg, 1, profanity_occurrences=[], sample_message=None)
     ops = agg.to_bulk_ops(sample_cap=5)
     assert len(ops) == 1
 

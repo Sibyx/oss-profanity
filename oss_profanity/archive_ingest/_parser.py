@@ -101,7 +101,7 @@ def parse_bytes(gz_bytes: bytes, *, sample_cap: int) -> _ParseResult:
                     first_seen_at=first_seen,
                     author=author,
                     language=language,
-                    profanity_hit_count=len(profanity_hits),
+                    profanity_occurrences=profanity_hits,
                     emoji_occurrences=emoji_hits,
                     sample_message=sample,
                     sample_cap=sample_cap,

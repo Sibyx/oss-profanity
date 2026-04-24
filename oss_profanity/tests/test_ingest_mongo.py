@@ -264,3 +264,23 @@ def test_finalizer_skips_emoji_top_prune_when_already_small(
     _finalizer.finalize(db, emoji_top_n=20)
     cs = db.repos.find_one({"_id": 1})["commit_stats"]
     assert cs["emoji_top"] == {"🚀": 2}
+
+
+def test_finalizer_truncates_profanity_top(clean_ingest_db: Any) -> None:
+    db = clean_ingest_db
+    db.repos.insert_one(
+        {
+            "_id": 1,
+            "commit_stats": {
+                "total_commits_in_window": 100,
+                "profanity_hits": 45,
+                "emoji_hits": 0,
+                "profanity_top": {f"word{i}": (10 - i) for i in range(10)},
+            },
+        }
+    )
+    _finalizer.finalize(db, emoji_top_n=3)
+    cs = db.repos.find_one({"_id": 1})["commit_stats"]
+    assert len(cs["profanity_top"]) == 3
+    # Highest-count entries must survive (word0=10, word1=9, word2=8).
+    assert set(cs["profanity_top"]) == {"word0", "word1", "word2"}

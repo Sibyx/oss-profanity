@@ -3,7 +3,17 @@
     "allow": [
       "WebSearch",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:pypi.org)"
+      "WebFetch(domain:pypi.org)",
+      "mcp__MongoDB__list-databases",
+      "mcp__MongoDB__list-collections",
+      "mcp__MongoDB__count",
+      "mcp__MongoDB__aggregate",
+      "mcp__MongoDB__collection-schema",
+      "mcp__MongoDB__find"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "MongoDB"
+  ]
 }

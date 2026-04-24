@@ -10,8 +10,10 @@ producing stale references and flaky failures across unrelated tests.
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 import pytest
+from dotenv import load_dotenv
 
 from oss_profanity.config import Config
 
@@ -78,3 +80,49 @@ def test_bot_regex_is_case_insensitive(
     assert cfg.bot_regex.search("GitHub-Actions") is not None
     assert cfg.bot_regex.search("RENOVATE-BOT") is not None
     assert cfg.bot_regex.search("alice") is None
+
+
+# ---------- .env loading ----------
+
+
+def test_dotenv_fills_unset_variables(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A `.env` pointed at via explicit path seeds missing env vars."""
+    monkeypatch.delenv("GHA_START", raising=False)
+    monkeypatch.delenv("GHA_END", raising=False)
+    monkeypatch.setenv("MONGO_URI", "mongodb://localhost:27017/test")
+    env_file = tmp_path / ".env"
+    env_file.write_text("GHA_START=2020-06-15-00\nGHA_END=2020-06-15-03\n")
+    load_dotenv(dotenv_path=env_file, override=False)
+
+    cfg = Config.from_env()
+    assert cfg.gha_start == "2020-06-15-00"
+    assert cfg.gha_end == "2020-06-15-03"
+
+
+def test_real_env_wins_over_dotenv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Explicit env exports must beat `.env` values (override=False)."""
+    monkeypatch.setenv("MONGO_URI", "mongodb://localhost:27017/test")
+    monkeypatch.setenv("GHA_START", "2020-01-01-00")
+    env_file = tmp_path / ".env"
+    env_file.write_text("GHA_START=9999-12-31-23\n")
+    load_dotenv(dotenv_path=env_file, override=False)
+
+    cfg = Config.from_env()
+    assert cfg.gha_start == "2020-01-01-00"
+
+
+def test_missing_dotenv_is_a_noop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Production deploys without `.env` must not break config import."""
+    monkeypatch.setenv("MONGO_URI", "mongodb://localhost:27017/test")
+    missing = tmp_path / ".env"  # does not exist
+    # load_dotenv returns False but does not raise when the path is absent.
+    assert load_dotenv(dotenv_path=missing, override=False) is False
+
+    cfg = Config.from_env()
+    assert cfg.mongo_uri == "mongodb://localhost:27017/test"

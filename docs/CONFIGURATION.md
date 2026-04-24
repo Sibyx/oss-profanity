@@ -29,14 +29,26 @@ Loaded once at import time into a frozen dataclass in [`oss_profanity/config.py`
 | `EMOJI_TOP_N`          | `20`                                                       | Size of per-repo `emoji_top` counter after truncation                                  |
 | `SAMPLE_PROFANE_N`     | `5`                                                        | Max profane commit messages retained per repo for talk material                        |
 
+### `.env` file support
+
+`oss_profanity/config.py` calls `dotenv.load_dotenv(override=False)` at import time, so a local `.env` next to the repo root (or anywhere up the cwd chain) is picked up automatically. A template lives at [`.env.example`](../.env.example) — copy it to `.env` and edit.
+
+Rules of the game:
+
+- **Real environment variables win.** `override=False` means `export MONGO_URI=...` in a shell (or a pytest `monkeypatch.setenv`, or a Docker `environment:` block) always beats the `.env` value.
+- **Missing `.env` is a no-op.** Production deploys (IP-009 Docker, IP-010 OpenStack) don't need one.
+- **`.env` is git-ignored.** Only `.env.example` is committed.
+- **Tests are isolated.** `conftest.py` sets `MONGO_URI=mongodb://localhost:27017/profanity_test` as a default **before** `config.py` imports; tests that actually need Mongo skip unless `TEST_MONGO_URI` is also set.
+
 ### Local development
 
 ```bash
-export MONGO_URI=mongodb://localhost:27017/profanity_dev
-# Everything else defaults reasonably for local smoke-testing.
+cp .env.example .env
+# Edit .env to set GHA_START / GHA_END to a narrow smoke window:
+#   GHA_START=2020-06-01-00
+#   GHA_END=2020-06-01-00
+python -m oss_profanity.archive_ingest   # picks up .env
 ```
-
-Tests seed `MONGO_URI=mongodb://localhost:27017/profanity_test` in `conftest.py`; tests that actually talk to Mongo skip unless `TEST_MONGO_URI` is also set.
 
 ### Docker harness (IP-009)
 

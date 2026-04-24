@@ -14,6 +14,7 @@ changes are documented before implementation.
 | [IP-003](posts/ip-003-emoji-detection.md) | Emoji detection — text-level emoji extraction | ✅ Implemented | 2026-04-23 |
 | [IP-004](posts/ip-004-static-analyzers.md) | Static analyzers — single-walk source scanning + language-dispatched linters | ✅ Implemented | 2026-04-24 |
 | [IP-005](posts/ip-005-gh-archive-ingest.md) | GH Archive ingest — Stage 1+2 streaming + scoring pipeline | ✅ Implemented | 2026-04-24 |
+| [IP-006](posts/ip-006-cohort-sampling.md) | Cohort sampling — Stage 3 stratified cohort promotion | 📝 Draft | 2026-04-24 |
 
 
 

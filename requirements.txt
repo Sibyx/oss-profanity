@@ -9,3 +9,4 @@ lizard>=1.22
 bandit>=1.7
 httpx[http2]>=0.28
 orjson>=3.11
+python-dotenv>=1.0

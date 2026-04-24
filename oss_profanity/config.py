@@ -2,6 +2,11 @@
 
 Every tunable lives here and is loaded from the environment once at import time
 into a frozen dataclass. No other module should call ``os.getenv`` directly.
+
+If a ``.env`` file sits next to the repo root (or anywhere up the cwd chain),
+its contents are loaded **before** ``Config.from_env`` reads the environment.
+Real environment variables always win over ``.env`` values — the file is a
+developer convenience, not a production override. Missing ``.env`` is a no-op.
 """
 
 from __future__ import annotations
@@ -10,6 +15,12 @@ import os
 import re
 from dataclasses import dataclass
 from datetime import timedelta
+
+from dotenv import load_dotenv
+
+# Load ``.env`` once at import time. ``override=False`` so explicit exports
+# (including pytest fixtures and production deploy env) always take precedence.
+load_dotenv(override=False)
 
 
 @dataclass(frozen=True)

@@ -34,6 +34,7 @@ class _RepoUpdate:
     emoji_commits: int = 0
     authors: set[str] = field(default_factory=set)
     languages: Counter[str] = field(default_factory=Counter)
+    profanity_top: Counter[str] = field(default_factory=Counter)
     emoji_top: Counter[str] = field(default_factory=Counter)
     sample_profane: list[str] = field(default_factory=list)
 
@@ -62,7 +63,7 @@ class _PerFileAggregator:
         first_seen_at: datetime,
         author: str | None,
         language: str,
-        profanity_hit_count: int,
+        profanity_occurrences: Iterable[str],
         emoji_occurrences: Iterable[str],
         sample_message: str | None,
         sample_cap: int,
@@ -74,7 +75,10 @@ class _PerFileAggregator:
             )
             self._items[repo_id] = upd
         upd.total_commits += 1
-        upd.profanity_hits += profanity_hit_count
+        prof_list = list(profanity_occurrences)
+        upd.profanity_hits += len(prof_list)
+        if prof_list:
+            upd.profanity_top.update(prof_list)
         emo_list = list(emoji_occurrences)
         upd.emoji_hits += len(emo_list)
         if emo_list:
@@ -103,6 +107,8 @@ class _PerFileAggregator:
             }
             for lang, count in upd.languages.items():
                 inc_fields[f"commit_stats.languages_detected.{lang}"] = count
+            for word, count in upd.profanity_top.items():
+                inc_fields[f"commit_stats.profanity_top.{word}"] = count
             for glyph, count in upd.emoji_top.items():
                 inc_fields[f"commit_stats.emoji_top.{glyph}"] = count
 
