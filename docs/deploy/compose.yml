@@ -1,0 +1,23 @@
+# IP-010: production worker deployment — copy to /opt/oss-profanity/compose.yml
+# on each of the three faculty worker hosts. Pairs with /opt/oss-profanity/.env
+# (template at docs/deploy/.env.example).
+#
+# Differences from the repo root's compose.yml (IP-009 developer-facing):
+#   - `image:` points at GHCR (not `build: .`)
+#   - `restart: on-failure` (clean queue drain must NOT trigger a restart loop)
+#   - No `profiles:` — this file is worker-only
+#   - No `host.docker.internal` — workers reach Mongo on the private network
+#
+# See docs/DEPLOYMENT.md for the full operator runbook.
+
+services:
+  worker:
+    image: ghcr.io/sibyx/oss-profanity:master
+    pull_policy: always
+    restart: on-failure
+    env_file: .env
+    volumes:
+      - scratch:/scratch
+
+volumes:
+  scratch:
