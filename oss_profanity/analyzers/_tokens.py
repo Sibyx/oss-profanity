@@ -1,7 +1,8 @@
 """Tree-sitter-backed comment + identifier extraction.
 
-One parse per file via ``_native.parse_string`` (the v1.x tree-sitter-
-language-pack Rust/PyO3 binding). From the resulting tree we pull:
+One parse per file via ``_native.parse_string`` (the tree-sitter-
+language-pack 1.6.2 Rust/PyO3 binding, imported from the package's
+``_native`` submodule). From the resulting tree we pull:
 
 - **Comment nodes** — node-type names vary per grammar (Rust uses
   ``line_comment`` / ``block_comment``, most others use ``comment``).
@@ -12,7 +13,7 @@ language-pack Rust/PyO3 binding). From the resulting tree we pull:
   not just declarations, so emoji-in-identifier occurrence counts stay
   accurate (the profanity path dedups, but the emoji path doesn't).
 
-Text is reconstructed by slicing the original source bytes on each
+Text is reconstructed by slicing the UTF-8 encoded source bytes on each
 node's ``start_byte`` / ``end_byte`` — tree-sitter is UTF-8 native, so
 ``errors="replace"`` on decode handles pathological files without
 crashing the walk.
@@ -25,7 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final
 
-import _native  # type: ignore[import-untyped]
+from tree_sitter_language_pack import _native  # type: ignore[attr-defined]
 
 logger = logging.getLogger(__name__)
 
@@ -113,13 +114,16 @@ def extract(path: Path, language: str) -> ExtractedTokens | None:
     unavailable — the caller records it as scanned-but-empty.
     """
     try:
-        source_bytes = path.read_bytes()
+        raw_bytes = path.read_bytes()
     except OSError as exc:
         logger.debug("_tokens.extract: unreadable %s (%s)", path, exc)
         return None
 
+    source_str = raw_bytes.decode("utf-8", errors="replace")
+    source_bytes = source_str.encode("utf-8")
+
     try:
-        tree = _native.parse_string(language, source_bytes)
+        tree = _native.parse_string(language, source_str)
     except Exception as exc:  # noqa: BLE001 — native parser errors vary
         logger.debug(
             "_tokens.extract: parse failed for %s as %s (%s)",
@@ -142,7 +146,7 @@ def extract(path: Path, language: str) -> ExtractedTokens | None:
     comments = [_node_text(n, source_bytes) for n in comment_nodes]
     identifiers = [_node_text(n, source_bytes) for n in identifier_nodes]
     comment_nloc = sum(
-        (n.end_row - n.start_row + 1) for n in comment_nodes
+        (n["end_row"] - n["start_row"] + 1) for n in comment_nodes
     )
 
     return ExtractedTokens(
@@ -152,14 +156,14 @@ def extract(path: Path, language: str) -> ExtractedTokens | None:
     )
 
 
-def _collect_nodes(tree: Any, types: tuple[str, ...]) -> list[Any]:
-    nodes: list[Any] = []
+def _collect_nodes(tree: Any, types: tuple[str, ...]) -> list[dict[str, Any]]:
+    nodes: list[dict[str, Any]] = []
     for t in types:
-        nodes.extend(_native.find_nodes_by_type(tree, t))
+        nodes.extend(tree.find_nodes_by_type(t))
     return nodes
 
 
-def _node_text(node: Any, source_bytes: bytes) -> str:
-    return source_bytes[node.start_byte : node.end_byte].decode(
+def _node_text(node: dict[str, Any], source_bytes: bytes) -> str:
+    return source_bytes[node["start_byte"] : node["end_byte"]].decode(
         "utf-8", errors="replace"
     )

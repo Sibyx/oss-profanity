@@ -3,7 +3,7 @@ pydantic>=2.6
 lingua-language-detector>=2.2
 emoji>=2.15
 tree-sitter>=0.23
-tree-sitter-language-pack>=1.6
+tree-sitter-language-pack==1.6.2
 identify>=2.6
 lizard==1.17.25
 bandit==1.9.4

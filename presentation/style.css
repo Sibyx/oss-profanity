@@ -1,0 +1,197 @@
+/*
+ * DBS Trains — Global Slidev Styles
+ * FIIT STU Visual Identity
+ *
+ * Primary color: #00A9E0 (FIIT blue)
+ * Font: Open Sans (STU standard)
+ */
+
+:root {
+  --fiit-blue: #00A9E0;
+  --fiit-dark: #1a1a2e;
+  --fiit-gray: #676767;
+  --fiit-light-gray: #f5f7fa;
+  --fiit-text: #2c3e50;
+}
+
+/* Headings */
+.slidev-layout h1 {
+  color: var(--fiit-dark);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.slidev-layout h2 {
+  color: var(--fiit-dark);
+  font-weight: 600;
+}
+
+.slidev-layout h3 {
+  color: var(--fiit-blue);
+  font-weight: 600;
+}
+
+/* Accent color for links and highlights */
+a {
+  color: var(--fiit-blue);
+}
+
+/* Blockquotes styled as callouts */
+.slidev-layout blockquote {
+  border-left: 4px solid var(--fiit-blue);
+  background: var(--fiit-light-gray);
+  padding: 0.75rem 1.25rem;
+  border-radius: 0 8px 8px 0;
+  font-style: normal;
+  color: var(--fiit-text);
+}
+
+.slidev-layout blockquote p {
+  margin: 0;
+}
+
+/* Table styling */
+.slidev-layout table {
+  font-size: 0.9em;
+}
+
+.slidev-layout table th {
+  background: var(--fiit-blue);
+  color: white;
+  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+}
+
+.slidev-layout table td {
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.slidev-layout table tr:nth-child(even) td {
+  background: var(--fiit-light-gray);
+}
+
+/* Code blocks */
+.slidev-layout pre {
+  border-radius: 8px;
+}
+
+/* Section layout title */
+.slidev-layout.section h1 {
+  color: var(--fiit-blue);
+}
+
+/* Cover slide */
+.slidev-layout.cover h1 {
+  font-size: 2.5rem;
+  line-height: 1.2;
+  color: var(--fiit-dark);
+}
+
+/*
+ * Diagram containment (IP-003)
+ *
+ * Slides containing .diagram-fit or .diagram-full become flex columns.
+ * The diagram container gets flex:1 + min-height:0, so it fills the
+ * remaining space after siblings (h1, text, captions) and never overflows.
+ * :has() is supported in Slidev's Chromium renderer.
+ */
+.slidev-layout:has(.diagram-fit),
+.slidev-layout:has(.diagram-full) {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Diagram with title + text on the same slide */
+.diagram-fit {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+/* Diagram-only slide or minimal title */
+.diagram-full {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.diagram-fit img,
+.diagram-fit svg,
+.diagram-fit .mermaid svg,
+.diagram-full img,
+.diagram-full svg,
+.diagram-full .mermaid svg {
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+/* Caption below recap diagrams */
+.diagram-caption {
+  flex-shrink: 0;
+  font-size: 0.85em;
+  color: var(--fiit-gray);
+  border-left: 3px solid var(--fiit-blue);
+  padding-left: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* Subtle footer on every slide */
+.slidev-layout::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--fiit-blue) 0%, var(--fiit-blue) 30%, transparent 100%);
+}
+
+/*
+ * IP-001 additions
+ */
+
+/* PostgreSQL trivia callout */
+.pg-trivia {
+  border-left: 4px solid var(--fiit-blue);
+  background: rgba(0, 169, 224, 0.06);
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  font-size: 0.9em;
+  margin: 0.75rem 0;
+}
+.pg-trivia-title { font-weight: 600; margin-bottom: 0.35rem; color: var(--fiit-dark); }
+.pg-trivia-body  { opacity: 0.85; }
+
+/* "Cool tip" callout — warmer than trivia, smaller than a blockquote */
+.cool-tip {
+  border-left: 4px solid #f59e0b;
+  background: rgba(245, 158, 11, 0.06);
+  padding: 0.6rem 1rem;
+  border-radius: 4px;
+  font-size: 0.9em;
+  margin: 0.75rem 0;
+}
+.cool-tip-title { font-weight: 600; margin-bottom: 0.3rem; color: #92400e; }
+
+/* Monaco injection-demo slide — PDF export fallback gate */
+.slidev-only { display: block; }
+.pdf-only    { display: none; }
+@media print {
+  .slidev-only { display: none !important; }
+  .pdf-only    { display: block !important; }
+}
+
+/* Code overflow guard for the Section 7 language examples (Q6) */
+.slidev-layout.code-fit pre,
+.slidev-layout:has(.code-fit) pre {
+  max-height: 70vh;
+  overflow: auto;
+}

@@ -15,6 +15,7 @@ All tunables come from :mod:`oss_profanity.config` — no module-level constants
 
 from __future__ import annotations
 
+import argparse
 import bisect
 import logging
 from collections.abc import Iterable, Sequence
@@ -268,38 +269,50 @@ def _log_report(report: _SamplingReport, bins: Sequence[int]) -> None:
 # ---------- public entrypoint ----------
 
 
-def run(db: Database[dict[str, Any]] | None = None) -> _SamplingReport:
+def run(
+    db: Database[dict[str, Any]] | None = None,
+    *,
+    profane_n: int | None = None,
+    clean_n: int | None = None,
+) -> _SamplingReport:
     """Run the full sampling pipeline and return a typed report.
 
     Pass ``db`` to inject a test database; production call sites rely on the
-    ``get_db()`` default. Safe to re-run: every selector narrows to
-    ``status in ["seen", "skipped"]`` so previously-promoted repos are
-    invisible.
+    ``get_db()`` default. ``profane_n`` / ``clean_n`` override the config
+    cohort sizes — top-up mode uses this to draw only the shortfall.
+
+    Safe to re-run: every selector narrows to ``status in ["seen", "skipped"]``
+    so previously-promoted repos are invisible.
     """
     db = db if db is not None else get_db()
     bins = config.sampling_commit_bins
+    profane_target = (
+        profane_n if profane_n is not None else config.profane_cohort_size
+    )
+    clean_target = (
+        clean_n if clean_n is not None else config.clean_cohort_size
+    )
 
     default_skipped = _default_skip(db)
 
-    profane = _select_profane(db, config.profane_cohort_size)
+    profane = _select_profane(db, profane_target)
 
     binned_a = _bin_candidates(profane, bins)
-    # Cap cohort B's target at CLEAN_COHORT_SIZE proportional to A's bin shape.
+    # Cap cohort B's target at ``clean_target`` proportional to A's bin shape.
     # In the common case (CLEAN = PROFANE) the per-bin target equals
     # len(binned_a[bin]); if the operator deliberately skews (e.g. CLEAN = 500
     # with PROFANE = 750), scale each bin's target down proportionally.
     profane_total = sum(len(v) for v in binned_a.values())
-    clean_target_total = config.clean_cohort_size
     bin_counts: dict[int, int] = {}
     if profane_total == 0:
         bin_counts = {lo: 0 for lo in bins}
-    elif clean_target_total == profane_total:
+    elif clean_target == profane_total:
         bin_counts = {lo: len(binned_a[lo]) for lo in bins}
     else:
-        scale = clean_target_total / profane_total
+        scale = clean_target / profane_total
         raw = {lo: int(round(len(binned_a[lo]) * scale)) for lo in bins}
         # Repair rounding drift so totals match exactly.
-        drift = clean_target_total - sum(raw.values())
+        drift = clean_target - sum(raw.values())
         if drift != 0:
             biggest_bin = max(bins, key=lambda lo: len(binned_a[lo]))
             raw[biggest_bin] += drift
@@ -326,12 +339,126 @@ def run(db: Database[dict[str, Any]] | None = None) -> _SamplingReport:
     return report
 
 
+# ---------- top-up ----------
+
+
+def _demote_missing(
+    db: Database[dict[str, Any]],
+) -> tuple[int, int]:
+    """Flip probe-404 cohort repos from pending/claimed/failed to ``missing``.
+
+    The probe script tags repos GitHub returned 404 on with
+    ``github_metadata_probe_missing_at``. Those stay in the cohort for
+    bookkeeping but must not block Stage 4 — this helper moves them out of
+    the claimable queue.
+
+    Returns ``(profane_demoted, clean_demoted)``.
+    """
+    query_profane: dict[str, Any] = {
+        "cohort": "profane",
+        "status": {"$in": ["pending", "claimed", "failed"]},
+        "github_metadata_probe_missing_at": {"$exists": True},
+    }
+    query_clean: dict[str, Any] = {
+        "cohort": "clean",
+        "status": {"$in": ["pending", "claimed", "failed"]},
+        "github_metadata_probe_missing_at": {"$exists": True},
+    }
+    update: dict[str, Any] = {
+        "$set": {"status": "missing"},
+        "$unset": {"claimed_by": "", "claimed_at": ""},
+    }
+    profane_result = db.repos.update_many(query_profane, update)
+    clean_result = db.repos.update_many(query_clean, update)
+    return (int(profane_result.modified_count), int(clean_result.modified_count))
+
+
+def _live_cohort_counts(
+    db: Database[dict[str, Any]],
+) -> tuple[int, int]:
+    """Return ``(profane_live, clean_live)`` — cohort rows still in the pipeline.
+
+    "Live" means any status that still counts toward the cohort target: every
+    status except ``missing`` (explicitly excluded) and the un-promoted
+    ``seen`` / ``skipped`` pool.
+    """
+    live_statuses = ["pending", "claimed", "done", "failed"]
+    profane = db.repos.count_documents(
+        {"cohort": "profane", "status": {"$in": live_statuses}}
+    )
+    clean = db.repos.count_documents(
+        {"cohort": "clean", "status": {"$in": live_statuses}}
+    )
+    return (int(profane), int(clean))
+
+
+def run_top_up(
+    db: Database[dict[str, Any]] | None = None,
+) -> _SamplingReport:
+    """Demote probe-404 cohort repos and draw a fresh batch to hit cohort targets.
+
+    Steps:
+      1. Move probe-404 cohort repos to ``status="missing"``.
+      2. Count live cohort survivors per side.
+      3. Run :func:`run` with ``profane_n`` / ``clean_n`` set to the shortfall
+         against ``config.profane_cohort_size`` / ``config.clean_cohort_size``.
+
+    No-op when both cohorts are already at target.
+    """
+    db = db if db is not None else get_db()
+
+    profane_demoted, clean_demoted = _demote_missing(db)
+    logger.info(
+        "top-up: demoted %d profane + %d clean probe-404 repos to status=missing",
+        profane_demoted,
+        clean_demoted,
+    )
+
+    profane_live, clean_live = _live_cohort_counts(db)
+    profane_gap = max(0, config.profane_cohort_size - profane_live)
+    clean_gap = max(0, config.clean_cohort_size - clean_live)
+    logger.info(
+        "top-up: profane live=%d target=%d gap=%d | clean live=%d target=%d gap=%d",
+        profane_live,
+        config.profane_cohort_size,
+        profane_gap,
+        clean_live,
+        config.clean_cohort_size,
+        clean_gap,
+    )
+    if profane_gap == 0 and clean_gap == 0:
+        logger.info("top-up: cohorts already at target — nothing to draw")
+        return _SamplingReport(
+            default_skipped=0,
+            profane_selected=0,
+            clean_selected=0,
+        )
+
+    return run(db, profane_n=profane_gap, clean_n=clean_gap)
+
+
 def _main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Promote a stratified profane/clean cohort to status=pending"
+    )
+    parser.add_argument(
+        "--top-up",
+        action="store_true",
+        help=(
+            "Demote probe-404 cohort repos to status=missing, then draw only "
+            "the shortfall against PROFANE_COHORT_SIZE / CLEAN_COHORT_SIZE"
+        ),
+    )
+    args = parser.parse_args()
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
-    run()
+    if args.top_up:
+        run_top_up()
+    else:
+        run()
 
 
 if __name__ == "__main__":

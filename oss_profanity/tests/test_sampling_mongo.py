@@ -231,3 +231,72 @@ def test_cohort_field_persisted_on_repo(
     assert clean_sample is not None
     assert clean_sample["status"] == "pending"
     assert clean_sample["cohort"] == "clean"
+
+
+# ---------- top-up ----------
+
+
+def test_top_up_demotes_missing_and_fills_gap(
+    clean_db: None, db_module: Any
+) -> None:
+    """Probe-404 cohort repos flip to status=missing; top-up then draws the gap."""
+    _set_cohort_sizes(100, 100)
+    db = db_module.get_db()
+    _seed_fixture(db)
+
+    mod = _reload_sampling()
+    first = mod.run(db)
+    assert first.total_promoted == 200
+
+    # Mark 20 profane + 15 clean pending rows as probe-404.
+    profane_ids = [
+        doc["_id"]
+        for doc in db.repos.find(
+            {"cohort": "profane", "status": "pending"}, projection={"_id": 1}
+        ).limit(20)
+    ]
+    clean_ids = [
+        doc["_id"]
+        for doc in db.repos.find(
+            {"cohort": "clean", "status": "pending"}, projection={"_id": 1}
+        ).limit(15)
+    ]
+    db.repos.update_many(
+        {"_id": {"$in": profane_ids + clean_ids}},
+        {"$set": {"github_metadata_probe_missing_at": datetime.now(timezone.utc)}},
+    )
+
+    report = mod.run_top_up(db)
+
+    # 404s demoted out of the queue.
+    assert db.repos.count_documents(
+        {"cohort": "profane", "status": "missing"}
+    ) == 20
+    assert db.repos.count_documents(
+        {"cohort": "clean", "status": "missing"}
+    ) == 15
+    # Gap filled: live cohort count back at target.
+    assert db.repos.count_documents(
+        {"cohort": "profane", "status": "pending"}
+    ) == 100
+    assert db.repos.count_documents(
+        {"cohort": "clean", "status": "pending"}
+    ) == 100
+    assert report.profane_selected == 20
+    assert report.clean_selected == 15
+
+
+def test_top_up_is_noop_when_at_target(
+    clean_db: None, db_module: Any
+) -> None:
+    _set_cohort_sizes(100, 100)
+    db = db_module.get_db()
+    _seed_fixture(db)
+
+    mod = _reload_sampling()
+    mod.run(db)
+
+    report = mod.run_top_up(db)
+    assert report.profane_selected == 0
+    assert report.clean_selected == 0
+    assert report.total_promoted == 0

@@ -6,6 +6,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 *.egg-info/
+node_modules/
 
 # Local env — .env.example is committed as a template.
 .env

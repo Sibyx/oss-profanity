@@ -1,0 +1,16 @@
+{
+  "name": "oss-profanity",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "slidev build presentation/slides.md",
+    "dev": "slidev presentation/slides.md --open",
+    "export": "slidev export presentation/slides.md"
+  },
+  "dependencies": {
+    "@slidev/cli": "latest",
+    "@slidev/theme-default": "latest",
+    "@slidev/theme-seriph": "latest",
+    "vue": "latest"
+  }
+}

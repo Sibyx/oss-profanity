@@ -20,7 +20,9 @@ from pymongo.database import Database
 
 from .config import config
 
-Status = Literal["seen", "pending", "claimed", "done", "failed", "skipped"]
+Status = Literal[
+    "seen", "pending", "claimed", "done", "failed", "skipped", "missing"
+]
 Cohort = Literal["profane", "clean"]
 
 
