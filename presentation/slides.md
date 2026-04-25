@@ -866,7 +866,7 @@ journal, a reviewer can literally re-run the numbers.
 
 <v-clicks>
 
-- **English-only swearword list** — Slovak, Czech, Russian profanity slips through
+- **English-centric swearword list** — Slovak, Czech, Russian profanity is under-represented
 - **Short commit messages are noisy** — one `fuck` in 3 commits ≠ a culture
 - **Forks inherit parent history** — we don't yet deduplicate forked commits
 - **The window is June 2020** — predates Copilot deliberately; won't generalise to today
@@ -1605,15 +1605,6 @@ dropped — silent-failure on the cohort).
 
 <img src="/images/plots/fig03_lizard_avg_ecdf.png" class="max-h-[440px] mx-auto" alt="Cumulative distribution of code complexity per cohort"/>
 
-<div class="text-center mt-2 text-sm opacity-70">
-Read this as <em>"% of repos at or below this complexity score."</em>
-The <span style="color:#00A9E0;font-weight:600">blue</span> (profane)
-curve sits to the right of the
-<span style="color:#676767;font-weight:600">grey</span> (clean) one
-across the whole range — <strong>more decisions per function,
-everywhere along the distribution</strong>.
-</div>
-
 <!--
 The headline result, single-chart edition. ECDF is the visual
 analogue of the rank test: profane curve sits to the right of clean
@@ -1628,14 +1619,6 @@ there's nothing to see; we mention the negatives one slide later.
 # The worst function in each repo
 
 <img src="/images/plots/fig04_lizard_p99_ecdf.png" class="max-h-[440px] mx-auto" alt="Cumulative distribution — worst-1 % function complexity per repo"/>
-
-<div class="text-center mt-2 text-sm opacity-70">
-Same chart, different question — instead of the <em>average</em>
-function in each repo, this asks <em>"how convoluted is the
-<strong>worst</strong> function in there?"</em> The gap is even
-wider. Profane repos carry a heavier tail of nasty functions, even
-when the bulk of the code looks similar.
-</div>
 
 <!--
 Backup slide for the inferential answer. The previous chart showed
@@ -1977,7 +1960,7 @@ Jakub Dubec · FIIT STU · <a href="https://github.com/Sibyx/oss-profanity">gith
 </div>
 
 <div class="mt-10 text-sm opacity-50">
-Slides at <code>presentation/opencamp/</code> in the repo. PDF export
+Slides at <code>presentation/</code> in the repo. PDF export
 committed pre-talk. CC-BY-SA.
 </div>
 
