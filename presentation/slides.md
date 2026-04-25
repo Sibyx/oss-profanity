@@ -75,6 +75,147 @@ measurable.
 -->
 
 ---
+layout: two-cols
+---
+
+# The tweet that started this
+
+<div class="text-base mt-4 leading-relaxed">
+
+February 2023. Prof. Alexandros Stamatakis tweets about a
+Bachelor's thesis from his lab at <strong>KIT Karlsruhe</strong>:
+
+</div>
+
+<blockquote class="mt-4 italic text-lg border-l-4 pl-4 border-[#00A9E0]">
+"A Bachelor thesis in my lab makes a seminal contribution to software
+engineering — open source codes written in C on github have higher
+code quality when they contain swear words."
+</blockquote>
+
+<div class="mt-4 text-sm opacity-70">
+644k views · 1.4k retweets · 8.4k likes
+</div>
+
+<v-click>
+
+<div class="mt-4 text-base">
+The internet did what the internet does. The thesis itself
+is a serious piece of work, and it deserves engagement — not memes.
+</div>
+
+</v-click>
+
+::right::
+
+<div class="ml-4">
+  <img src="/images/origin/stamatakis_tweet.png" class="rounded-lg shadow-md" alt="Stamatakis tweet" />
+</div>
+
+<!--
+Show the meme honestly. The audience either remembers it or wants to
+see it. Stamatakis is the reviewer named on the thesis cover; the
+tweet is what made the thesis go viral. Pause briefly so people can
+read the histograms — clean repos in the left, swear repos on the right,
+visibly shifted to higher SoftWipe scores. The hook beat is "this is
+where the question came from for me." Don't dwell — the next slide is
+the actual thesis.
+-->
+
+---
+
+# The actual thesis
+
+**Strehmel, J. (2023).** *Is there a Correlation between the Use of
+Swearwords and Code Quality in Open Source Code?* Bachelor's thesis,
+Karlsruhe Institute of Technology, ITI. Supervisor: Stamatakis.
+
+<v-clicks>
+
+- **C source only** — GitHub code-search, ~3,800 swear-repos vs ~7,600 star-repos
+- Quality measured via [**SoftWipe**](https://www.nature.com/articles/s41598-021-89495-8) — single 0–10 score, dynamic + static analysers
+- Stats: KS-test, Welch's t-test, Jarque-Bera, bootstrapped CIs
+- **Result:** swear-repos mean **5.87** vs star-repos **5.41** (p ≈ 10⁻⁶¹)
+- Conclusion: *"a statistically significant correlation between swearing and an improvement in code quality"*
+
+</v-clicks>
+
+<v-click>
+
+<div class="fiit-callout-info mt-4 text-sm">
+Honest, well-documented work. The thesis explicitly flags that this
+is observational, that correlation ≠ causation, and that practical
+significance need not follow statistical significance.
+</div>
+
+</v-click>
+
+<!--
+Dead serious slide. Strehmel did good honest research. The methodology
+is replicable, the data is documented, and the limitations are named
+in the thesis itself. We are not here to dunk on a Bachelor thesis;
+we are here to extend it. Critical points the audience should leave
+with: (1) C-only, (2) star-repos as proxy for quality (popularity ≠
+quality), (3) means + Welch's t-test on a heavy-tailed distribution
+is statistically defensible but vulnerable to long-tail outliers, (4)
+no matched cohort — comparing "repos with swearwords" against "repos
+with ≥4 stars" measures whatever else differs between those groups.
+-->
+
+---
+
+# What we wanted to fix
+
+<div class="grid grid-cols-2 gap-6 mt-4 text-sm">
+
+<div>
+
+**Strehmel 2023**
+
+- C only
+- Star-repos as proxy for quality
+- One quality dimension (SoftWipe)
+- Means + Welch's t-test
+- Code-search snapshot, not time-bounded
+- ~11k repos total
+
+</div>
+
+<div>
+
+**This work — 2026**
+
+- 18 languages via tree-sitter
+- Bin-matched commit-activity cohorts
+- Five separate quality dimensions
+- Rank tests + Bonferroni + effect size
+- GH Archive 2020-06 — frozen window, pre-Copilot
+- 3.7 M repos seen, 1,295 deeply analysed
+
+</div>
+
+</div>
+
+<v-click>
+
+<div class="mt-4 text-base opacity-80">
+Same question, harder methodology. Same direction in the answer
+(spoiler: no, not quite — read on).
+</div>
+
+</v-click>
+
+<!--
+This slide names the deltas without snark. Each row is a defensible
+methodology improvement, not a personal critique. The point: research
+is iterative. Strehmel asked the question; we tighten the
+measurement. By the time we land on the inferential slide later in
+the deck, the audience already knows we're looking at five
+independent metrics rather than one composite — and that's why our
+"significant" answer is more constrained than the original headline.
+-->
+
+---
 
 # The question
 
@@ -163,20 +304,24 @@ layout: section
 
 <v-clicks>
 
+- **Strehmel (KIT 2023)** — the thesis we already covered: C only, SoftWipe, means
 - **Guzman & Azócar (MSR 2014)** — commit-message sentiment analysis
 - **Miller et al. (ICSE 2022)** — toxicity in OSS communication
+- **Baruch et al. (J. Managerial Psychology 2017)** — *"Swearing at work: the mixed outcomes of profanity"*
 - Various — profanity in chat, issues, code review
-- **GitHub's own data science posts** — top emoji, top repos
 - Sadly-many — "top 10 worst commit messages" blog posts
 
 </v-clicks>
 
 <!--
-There's real work on sentiment and toxicity in OSS. Guzman/Azócar's
-paper is the methodological grandparent of what I'm doing — they
-mined GitHub commit messages for sentiment. Miller et al. 2022 looked
-at toxicity specifically. Neither asked "does this correlate with code
-quality metrics at scale?" That's the gap.
+There's real work on sentiment and toxicity in OSS. Strehmel 2023 is
+the closest methodological neighbour — same question, narrower
+scope. Guzman/Azócar mined commit messages for sentiment. Miller et
+al. looked at toxicity specifically. Baruch is the workplace
+psychology angle — swearing as stress relief, not necessarily
+correlation with output. None of them asked "does this correlate with
+multiple code-quality metrics at scale, with matched cohorts, on a
+modern language mix?" That's the gap.
 -->
 
 ---
@@ -185,75 +330,70 @@ quality metrics at scale?" That's the gap.
 
 <v-clicks>
 
-- Profanity vs. **code-quality metrics** at scale
+- Profanity vs. **multiple** code-quality dimensions on the **same** cohort
 - **Matched cohorts** — profane vs. clean, same commit activity
-- **Multiple quality dimensions** — ruff, eslint, lizard, jscpd
+- **Multi-language** — beyond C, with the right linter per primary language
 - **AST-level** signal — profanity in *identifiers*, not just messages
-- **Reproducible pipeline** — someone else can re-run my numbers
+- **Reproducible pipeline** — someone else can re-run our numbers, byte-identical
 
 </v-clicks>
 
 <v-click>
 
-> The gap isn't "nobody thought of it." It's "nobody did it properly."
+> The gap isn't "nobody thought of it." Strehmel asked the question.
+> We tighten the measurement.
 
 </v-click>
 
 <!--
 The list is short, specific, and falsifiable. If anyone knows a paper
 that does this rigorously — please tell me at the break. I'll gladly
-cite it. The closest approaches I found either hit one quality metric
-or use an un-matched cohort. The matched-cohort + multi-metric +
-reproducible combo is where this work sits.
+cite it. The closest approach (Strehmel 2023) hits one quality metric
+on one language; we extend it. The matched-cohort + multi-metric +
+multi-language + reproducible combo is where this work sits.
 -->
 
 ---
 
-# The hypothesis
+# The hypothesis — in plain English
 
 <div class="grid grid-cols-2 gap-6 mt-6">
 <div>
 
-**H₀** — *null*
+**The boring outcome**
 
-No difference in `code_analysis` distributions between the
-profane cohort and the clean cohort.
+Pick a profane repo and a clean repo at random. Their code-quality
+numbers look about the same. Profanity is just noise.
 
 </div>
 
 <div>
 
-**H₁** — *alternative*
+**The interesting outcome**
 
-A difference exists, in at least one quality dimension.
+The two pools <strong>tilt</strong>. One side tends to score higher
+than the other on at least one quality measurement.
 
 </div>
 </div>
 
 <v-click>
 
-<div class="mt-6">
-
-Test: **Mann-Whitney U**, two-sided. Non-parametric — we don't assume
-the `ruff_issues_per_kloc` distribution is normal (it isn't).
-
+<div class="mt-6 text-base opacity-90">
+Our job: line up every repo by quality, ask whether profane repos
+cluster on the high end or the low end of that line — and prove the
+clustering didn't happen by chance.
 </div>
-
-</v-click>
-
-<v-click>
-
-Effect size: **rank-biserial correlation**.
 
 </v-click>
 
 <!--
-Non-parametric is the right choice here. Code-quality metrics are
-famously heavy-tailed — one monorepo with 200k LOC and 5000 ruff
-issues drags any mean analysis into the weeds. Rank-based tests don't
-care about distribution shape, only about ordering. Mann-Whitney U is
-the standard tool; rank-biserial gives us effect-size so "statistically
-significant but trivial" doesn't slip past.
+Translate the H₀ / H₁ pair into plain English. The boring outcome is
+the null hypothesis: no difference, profanity tells us nothing about
+quality. The interesting outcome is what we test for. The "line up
+every repo by quality" line is a soft introduction to rank tests —
+we'll come back to it on the statistical-test slide. Keep it light;
+the audience hasn't seen the numbers yet.
 -->
 
 ---
@@ -312,27 +452,26 @@ layout: section
 
 ```mermaid
 graph LR
-    S1[Stage 1<br/>Ingest<br/>GH Archive] --> S2[Stage 2<br/>Score<br/>profanity + emoji]
-    S2 --> S3[Stage 3<br/>Sample<br/>bin-matched cohorts]
-    S3 --> S4[Stage 4<br/>Analyze<br/>clone + static tools]
-    S4 --> S5[Stage 5<br/>Test<br/>Mann-Whitney U]
+    S1[Stage 1<br/>Collect<br/>every public commit] --> S2[Stage 2<br/>Score<br/>profanity + emoji]
+    S2 --> S3[Stage 3<br/>Match<br/>profane vs. clean pools]
+    S3 --> S4[Stage 4<br/>Analyse<br/>five quality lenses]
+    S4 --> S5[Stage 5<br/>Compare<br/>does the tilt exist?]
 
-    style S5 fill:#ffe0e0,stroke:#ff6b6b
+    style S5 fill:#e6f6fc,stroke:#00A9E0
 ```
 
 <v-click>
 
-Five stages. The first four are shipped. The fifth is running right
-now; results land next month.
+Five stages. Each one zooms in on the one before. The next dozen
+slides walk through them.
 
 </v-click>
 
 <!--
 The picture is the whole talk in one slide. Every subsequent
-methodology slide zooms in on one box. Stage 5 is the only one not
-yet done — that's the Mann-Whitney U + plotting pipeline. I'll
-explicitly flag that again on the "what's NOT in this deck" slide in
-Act V.
+methodology slide zooms in on one box. Plain-English labels: collect,
+score, match, analyse, compare. The technical names (Mann-Whitney U,
+Bonferroni etc.) live on the dedicated stats slide, not here.
 -->
 
 ---
@@ -374,7 +513,6 @@ copy bot-style conventions.
 - **[LDNOOBW](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)** — List of Dirty, Naughty, Obscene and Otherwise Bad Words
 - Shopify's open dataset, ~2 500 English terms
 - Word-boundary match — not substring
-- Language guard via [lingua-rs](https://github.com/pemistahl/lingua-rs) — only score English commits
 - Per-repo counters: `profanity_hits`, `profanity_rate`, top-N word histogram
 
 </v-clicks>
@@ -521,39 +659,47 @@ claims per second max, Mongo barely notices.
 
 ---
 
-# Stage 4 · Static analyzers (5 tools)
+# Stage 4 · Five separate quality lenses
 
 <v-clicks>
 
-- **`ruff` 0.15** — Python lints (bug-class + style)
-- **`bandit` 1.9** — Python security
-- **`eslint` 10 (flat config)** — JS/TS lints *(silent-failure on cohort — see footnote)*
-- **`lizard` 1.17** — cyclomatic complexity, 18 languages
-- **`jscpd` 4** — clone detection across JS / TS / HTML / CSS
+- **Lint warnings (Python)** — `ruff` · "your code probably has a bug or a style problem here"
+- **Security smells (Python)** — `bandit` · "this looks like a way an attacker could get in"
+- **Lint warnings (JS / TS)** — `eslint` · *failed across the cohort, see footnote*
+- **Code complexity** — `lizard` · "how many decisions does the reader have to follow inside one function?"
+- **Copy-paste rate** — `jscpd` · "how much of the codebase is duplicated chunks?"
 
 </v-clicks>
 
 <v-click>
 
-Each tool answers a different question. We do not combine their
-scores into one "quality number" — that's where snake-oil lives.
+<div class="mt-4 text-base">
+Each lens asks a different question. We <strong>never</strong> mash
+them into one "quality score" — that's where snake-oil lives.
+A repo can be lint-clean and still impossibly complex; another can
+have warnings everywhere and beautifully simple control flow.
+</div>
 
 </v-click>
 
 <v-click>
 
 <div class="fiit-callout mt-4 text-sm">
-ESLint failed silently for 100% of the cohort (0 / 1,295 done repos).
-Lizard covers JS/TS via tree-sitter for this run; ESLint debug is the
-top post-talk follow-up.
+ESLint produced no data on any of our 1 295 repos — the analyser is
+silently failing on 2020-era JavaScript. The complexity lens
+covers JS / TS instead. Fixing ESLint is the top follow-up.
 </div>
 
 </v-click>
 
 <!--
-SKIPPABLE IF SHORT — detail slide. The key takeaway: different tools,
-different questions, kept separate in the data. If anyone asks "why
-not SonarCube / CodeClimate / Codacy" — those are vendor tools,
+Translated for a popular audience. Linter = "your code probably has a
+bug here." Cyclomatic complexity = "decisions in one function." Clone
+detection = "duplicated chunks." This is the slide where we let go of
+brand names and let go of file extensions; the next slide on
+statistical method needs an audience that already understands
+"five different questions, five different answers." If anyone asks
+"why not SonarCube / CodeClimate / Codacy" — those are vendor tools,
 black-box, versioned outside our control. For reproducibility we
 needed self-hosted pinned versions. That rules out the SaaS cluster.
 -->
@@ -614,36 +760,50 @@ binding is fast (parses a typical source file in microseconds).
 
 ---
 
-# Stage 5 · Statistical test
+# Stage 5 · How we ask the question
+
+<div class="text-base mt-2 leading-relaxed">
+
+Imagine all 1 295 repos lined up on a long bench, sorted by one
+quality measurement. Two colours: <span style="color:#676767;font-weight:600">grey</span> for
+clean, <span style="color:#00A9E0;font-weight:600">blue</span> for profane. If profanity is noise,
+the colours should be shuffled randomly. If profanity matters, blue
+should clump on one end.
+
+</div>
 
 <v-clicks>
 
-- **Mann-Whitney U**, two-sided
-- Five a-priori tests (eslint dropped — see Stage 4 slide):
-  - `ruff_issues_per_kloc`
-  - `lizard_avg_ccn`, `lizard_ccn_p99`
-  - `jscpd_duplicate_rate`, `comment_to_code_ratio`
-- **Bonferroni** at α = 0.05 / 5 = **0.01**
-- Effect size: rank-biserial correlation
+- The actual test counts how often a blue repo ranks higher than a grey one and asks: *is that count further from 50 % than chance allows?*
+  <span class="text-xs opacity-60">(textbook name: Mann–Whitney <em>U</em> rank test — non-parametric, ignores outliers)</span>
+- We run this <strong>five times</strong> — one per quality lens.
+- Five tries at finding "something interesting" inflates false alarms. We tighten the bar five-fold so a finding has to be five-times-more-convincing before we report it.
+  <span class="text-xs opacity-60">(textbook name: Bonferroni correction at α / 5 = 0.01)</span>
+- And we ask "<em>how big</em> is the tilt?" — small, medium, or strong — separately from "is it real?"
+  <span class="text-xs opacity-60">(textbook name: rank-biserial correlation, effect size)</span>
 
 </v-clicks>
 
 <v-click>
 
-<div class="fiit-callout-info mt-4 text-sm">
-Family-wise error: with 5 tests at α=0.05 each, P(at least one false
-positive) ≈ 23 %. Bonferroni divides α by the test count so the family
-stays at 5 %.
+<div class="fiit-callout-info mt-3 text-sm">
+Why the bench-sort framing? Code-quality numbers have nasty outliers
+— one giant monorepo can drag any "average" to nonsense. Ranks ignore
+how big the outlier is, only where it sits in line.
 </div>
 
 </v-click>
 
 <!--
-The honest-note slide. Stage 5 is the last piece. It's a few hundred
-lines of Python with scipy and matplotlib; the work already done by
-Stage 4 makes it a one-evening job once the cohort is drained. I
-just can't stand here today and tell you the p-value. Next talk. I'll
-come back for the follow-up — that's a promise.
+This is the popular-science version of the methodology slide.
+Mann-Whitney U is "line up the repos and count blue-above-grey
+swaps." Bonferroni is "tighten the bar because we're looking five
+times." Effect size is "how big is the tilt." The technical names
+stay on screen as faint footnotes — the audience can google them
+later if they want — but the load-bearing story is told in plain
+English. The bench-sort metaphor is the one I want them to leave
+with; it's also the metaphor that makes ECDFs make sense on the
+results slide.
 -->
 
 ---
@@ -706,11 +866,11 @@ journal, a reviewer can literally re-run the numbers.
 
 <v-clicks>
 
-- **LDNOOBW is English-centric** — misses / incomplete swearing for other languages
-- **Short commit messages are noisy** — one `fuck` in 3 commits ≠ culture
-- **Forks inherit parent's history** — we don't (yet) deduplicate forked commits
-- **Sample frame is 2020** — won't generalise to post-Copilot code
-- **Quality metrics are imperfect proxies** — `ruff_issues` ≠ "bad code"
+- **English-only swearword list** — Slovak, Czech, Russian profanity slips through
+- **Short commit messages are noisy** — one `fuck` in 3 commits ≠ a culture
+- **Forks inherit parent history** — we don't yet deduplicate forked commits
+- **The window is June 2020** — predates Copilot deliberately; won't generalise to today
+- **Tools are imperfect proxies** — a "warning count" of zero doesn't make code good
 
 </v-clicks>
 
@@ -757,22 +917,6 @@ popular, someone will ask for the list of "the most profane repos" —
 the answer is no.
 -->
 
----
-
-# With all that, here's the stack
-
-<div class="text-base opacity-60 mt-4">
-Tech act — 10 minutes. Engineers, this is for you.
-</div>
-
-<!--
-Transitional slide. The methodology is done; now we shift into the
-build. Audience break. Optional 15-second pause for questions "so
-far" — but keep it tight or we lose the budget.
--->
-
----
-layout: section
 ---
 
 # Tech stack
@@ -922,41 +1066,6 @@ lines of code that replaces an entire Celery deployment. Mongo's
 per-document atomicity does the heavy lifting. We don't need a
 broker, we don't need acks, we don't need dead-letter queues. The
 primitive IS the queue.
--->
-
----
-
-# The stale-claim reaper
-
-<v-clicks>
-
-- Worker claims a repo, then dies (segfault, OOM, network partition)
-- Claim sits at `status="claimed"` with `claimed_by` + `claimed_at`
-- Any live worker's `reclaim_stale()`:
-
-```python
-update_many(
-  {"status": "claimed",
-   "claimed_at": {"$lt": now() - 20min}},
-  {"$set": {"status": "pending"},
-   "$unset": {"claimed_by": "", "claimed_at": ""}})
-```
-
-- Stale claim → `pending` → next free worker picks it up
-
-</v-clicks>
-
-<v-click>
-
-No work lost. No work duplicated. One `update_many`.
-
-</v-click>
-
-<!--
-Fault tolerance as a dozen lines of code. The magic number is 20
-minutes (`STALE_CLAIM_TTL_MIN`). It needs to be bigger than the
-per-repo timeout (10 min) so we never reclaim a slow-but-alive
-worker. If a host reboots mid-run, this cleans up after it.
 -->
 
 ---
@@ -1184,24 +1293,11 @@ emoji-per-commit stays flat or rises even as profanity declines.
 
 # Top profanity words
 
-<div class="mt-4 text-sm">
-
-<div class="bar-row"><div class="label">xxx</div><div class="bar" style="width: 100%"></div><div class="count">5 619</div></div>
-<div class="bar-row"><div class="label">shit</div><div class="bar" style="width: 92%"></div><div class="count">5 176</div></div>
-<div class="bar-row"><div class="label">xx</div><div class="bar" style="width: 72%"></div><div class="count">4 061</div></div>
-<div class="bar-row"><div class="label">fuck</div><div class="bar" style="width: 66%"></div><div class="count">3 706</div></div>
-<div class="bar-row"><div class="label">ass</div><div class="bar" style="width: 65%"></div><div class="count">3 663</div></div>
-<div class="bar-row"><div class="label">fucking</div><div class="bar" style="width: 37%"></div><div class="count">2 091</div></div>
-<div class="bar-row"><div class="label">sex</div><div class="bar" style="width: 19%"></div><div class="count">1 071</div></div>
-<div class="bar-row"><div class="label">sucks</div><div class="bar" style="width: 13%"></div><div class="count">747</div></div>
-<div class="bar-row"><div class="label">rape</div><div class="bar" style="width: 11%"></div><div class="count">605</div></div>
-<div class="bar-row"><div class="label">guro</div><div class="bar" style="width: 10%"></div><div class="count">573</div></div>
-
-</div>
+<img src="/images/plots/fig06_top_profanity.png" class="max-h-[420px] mx-auto" alt="Top-30 profanity words" />
 
 <v-click>
 
-<div class="fiit-callout mt-4">
+<div class="fiit-callout mt-4 text-sm">
 Wait — <code>xxx</code>? <code>xx</code>? Those aren't profanity. Those are <code>xxx-placeholder</code>, hex strings, version stubs. LDNOOBW matches the substring inside longer tokens.
 </div>
 
@@ -1261,8 +1357,8 @@ in advance.
 <div class="bar-row"><div class="label">🤖</div><div class="bar" style="width: 50%"></div><div class="count">9 581</div></div>
 <div class="bar-row"><div class="label">✨</div><div class="bar" style="width: 48%"></div><div class="count">9 249</div></div>
 <div class="bar-row"><div class="label">🎩</div><div class="bar" style="width: 40%"></div><div class="count">7 779</div></div>
-<div class="bar-row"><div class="label">⬆</div><div class="bar" style="width: 34%"></div><div class="count">6 627</div></div>
-<div class="bar-row"><div class="label">❤</div><div class="bar" style="width: 34%"></div><div class="count">6 621</div></div>
+<div class="bar-row"><div class="label">⬆️</div><div class="bar" style="width: 34%"></div><div class="count">6 627</div></div>
+<div class="bar-row"><div class="label">❤️</div><div class="bar" style="width: 34%"></div><div class="count">6 621</div></div>
 <div class="bar-row"><div class="label">🎸</div><div class="bar" style="width: 23%"></div><div class="count">4 578</div></div>
 <div class="bar-row"><div class="label">🎨</div><div class="bar" style="width: 21%"></div><div class="count">4 081</div></div>
 <div class="bar-row"><div class="label">📝</div><div class="bar" style="width: 17%"></div><div class="count">3 378</div></div>
@@ -1271,9 +1367,12 @@ in advance.
 
 <!--
 The emoji distribution is more concentrated than profanity — 🚀 alone
-is ~40% of the top-10. Next three slides unpack the meaning of the
-leaders. The short version: emoji in commits is almost entirely
-conventional (release, bugfix, feature) rather than expressive.
+is ~40 % of the top-10. Next three slides unpack the meaning of the
+leaders. Short version: emoji in commits is almost entirely
+conventional (release, bugfix, feature) rather than expressive. We
+keep this slide as inline HTML rather than a generated PNG because
+matplotlib doesn't ship a colour-emoji font, so the chart rendered
+as tofu boxes. The browser draws the glyphs natively.
 -->
 
 ---
@@ -1386,32 +1485,45 @@ conventions spread.
 
 ---
 
-# Matched cohort composition
+# Matched cohort — what actually drained
+
+<div class="grid grid-cols-2 gap-4 mt-2">
+
+<img src="/images/plots/fig01_cohort_funnel.png" alt="Cohort funnel"/>
+
+<div class="text-sm leading-relaxed">
 
 <v-clicks>
 
-- **1 500 repos live** after top-up (2 × 750 bin-matched)
-- **27.9 % Python + JS/TS** — eligible for ruff / eslint
-- **67.5 % tree-sitter coverage** — eligible for source scan
-- **1.7 % 404 attrition** — repos that died between sample and probe
+- **1 500 design target** · 2 × 750 bin-matched
+- **1 295 done** with `code_analysis` populated
+- **205 failed** — archived, oversized, no commits in window
+- **764 missing** — top-up cycles for 404s
+- Failure skews <strong>2.3×</strong> higher in the profane cohort — top-up draws hit deeper into the long tail
 
 </v-clicks>
 
+</div>
+
+</div>
+
 <v-click>
 
-<div class="fiit-callout-info mt-4">
-For the paper: ruff/eslint numbers will cite the 418-repo Python+JS/TS
-subset; the full 1 013-repo tree-sitter result covers the primary
-emoji/profanity source-scan hypothesis.
+<div class="fiit-callout-info mt-3 text-sm">
+Per-language: ruff numbers cite the 208-repo Python subset;
+JS/TS goes through tree-sitter + lizard since ESLint silent-failed
+across the cohort.
 </div>
 
 </v-click>
 
 <!--
 Honest subset reporting. You don't have to pretend you have 1,500
-Python repos when you have 107. The matched design still holds —
-within Python, the profane vs. clean split is bin-matched. We just
-can't generalise to languages where ruff doesn't apply.
+Python repos when you have 200. The matched design still holds — the
+2.3× skew in failures is mechanical (top-up draws further into the
+long tail of less-maintained repos), not a methodology break. The
+fig01 funnel makes the n's concrete; the next slide does the
+per-language complexity panel.
 -->
 
 ---
@@ -1473,7 +1585,7 @@ unattributed. I'm not going to name repos.
 
 <div class="mt-4">
 
-This is the input to Stage 5. ~1 500 of these → 6 Mann-Whitney tests.
+This is the input to Stage 5. 1 295 of these → 5 Mann-Whitney tests.
 
 </div>
 
@@ -1483,76 +1595,56 @@ This is the input to Stage 5. ~1 500 of these → 6 Mann-Whitney tests.
 One document per repo. `code_analysis` is the structured payload
 Stage 5 reads. Every field is a pre-computed quality dimension. The
 Mann-Whitney test compares distributions of `ruff_issues_per_kloc`
-etc. between the two cohorts. Six tests, Bonferroni-corrected.
+etc. between the two cohorts. Five tests, Bonferroni-corrected (eslint
+dropped — silent-failure on the cohort).
 -->
 
 ---
 
-# Everything currently runs
+# What lights up
 
-<div class="mt-4 text-sm opacity-80">
-
-```text
-$ docker compose logs -f --tail 10 worker
-worker-1  | 2026-04-24 18:03:12 INFO loop: claim repo 42981 (status→claimed)
-worker-1  | 2026-04-24 18:03:18 INFO _processor: pipeline ok (repo=42981, lang=python, loc=8120, 6.2s)
-worker-2  | 2026-04-24 18:03:19 INFO _processor: skip repo 42982 (archived)
-worker-1  | 2026-04-24 18:03:24 INFO loop: claim repo 42983 (status→claimed)
-worker-3  | 2026-04-24 18:03:25 INFO _processor: pipeline ok (repo=42983, lang=javascript, loc=23410, 5.8s)
-```
-
-</div>
-
-<v-click>
-
-<div class="mt-6 text-center">
-
-Status: `claimed` hovering at 36 · `pending` ↓ · `done` ↑
-
-</div>
-
-</v-click>
-
-<v-click>
-
-<div class="mt-2 text-center opacity-70">
-Eta: ~6 hours to drain · ~1 400 repos analysed · results next talk.
-</div>
-
-</v-click>
-
-<!--
-This is the "it's real" slide. Not a mock — this is what the log
-looks like on a faculty host. In the speaker notes I'll reference
-the four Mongo monitoring queries from `docs/DEPLOYMENT.md` but I
-won't read them on-screen.
--->
-
----
-
-# Stage 5 results · five a-priori metrics
-
-<div class="grid grid-cols-2 gap-4 mt-4">
-
-<img src="/images/plots/fig05_quality_forest.png" />
-
-<img src="/images/plots/fig03_lizard_avg_ecdf.png" />
-
-</div>
+<img src="/images/plots/fig03_lizard_avg_ecdf.png" class="max-h-[440px] mx-auto" alt="Cumulative distribution of code complexity per cohort"/>
 
 <div class="text-center mt-2 text-sm opacity-70">
-Forest plot · five a-priori metrics, Bonferroni at α/5 = 0.01 ·
-ECDF · cyclomatic complexity (mean) per cohort
+Read this as <em>"% of repos at or below this complexity score."</em>
+The <span style="color:#00A9E0;font-weight:600">blue</span> (profane)
+curve sits to the right of the
+<span style="color:#676767;font-weight:600">grey</span> (clean) one
+across the whole range — <strong>more decisions per function,
+everywhere along the distribution</strong>.
 </div>
 
 <!--
-The headline result. Forest plot on the left shows that only the three
-lizard rows survive Bonferroni — ruff, jscpd, comment_to_code_ratio
-sit on or near zero. ECDF on the right is the visual analogue of the
-rank test: profane curve sits to the right of clean across the whole
-range. Pause here for a beat. ESLint is not on the forest plot — it
-is the only metric where the analyser silent-failed; reporting "no
-data" rather than running an empty test.
+The headline result, single-chart edition. ECDF is the visual
+analogue of the rank test: profane curve sits to the right of clean
+across the whole range, which is the picture our test is detecting
+as a tilt. Pause here for a beat. The lint-count / clone-rate / comment
+density results show no such gap — they're not on this slide because
+there's nothing to see; we mention the negatives one slide later.
+-->
+
+---
+
+# The worst function in each repo
+
+<img src="/images/plots/fig04_lizard_p99_ecdf.png" class="max-h-[440px] mx-auto" alt="Cumulative distribution — worst-1 % function complexity per repo"/>
+
+<div class="text-center mt-2 text-sm opacity-70">
+Same chart, different question — instead of the <em>average</em>
+function in each repo, this asks <em>"how convoluted is the
+<strong>worst</strong> function in there?"</em> The gap is even
+wider. Profane repos carry a heavier tail of nasty functions, even
+when the bulk of the code looks similar.
+</div>
+
+<!--
+Backup slide for the inferential answer. The previous chart showed
+average-function complexity; this one shows the 99th-percentile —
+"the worst function we found in each repo." The gap is wider here
+than on the average, so the story is "profane repos hide more
+pathological functions in their tails." Skippable if running long;
+useful for Q&A. Avoid the term "p99" on stage; use "the worst
+function" language so the audience never has to translate.
 -->
 
 ---
@@ -1581,20 +1673,29 @@ the inferential answer slide.
 layout: center
 ---
 
-# The inferential answer
+# The answer
 
-<div class="text-3xl font-semibold mt-8 leading-snug">
-Profane repos have <span style="color:#00A9E0">~10 %</span>
-higher median cyclomatic complexity
-<br/>
-(<span style="color:#00A9E0">p &lt; 10⁻⁴</span>, small effect <span style="color:#00A9E0">r<sub>rb</sub> ≈ 0.13</span>).
+<div class="text-3xl font-semibold mt-6 leading-snug">
+Code in profane repos is <span style="color:#00A9E0">measurably more
+convoluted</span> — about <span style="color:#00A9E0">10 %</span>
+more decisions per function on average.
 </div>
 
 <v-click>
 
-<div class="text-xl mt-6 opacity-80">
-Lint counts, clone rate, and comment density show
-<strong>no significant cohort difference</strong>.
+<div class="text-xl mt-5 opacity-80">
+Real signal, but a <strong>small</strong> one. You'd have to look at
+many repos before you noticed it from the outside.
+<span class="text-sm opacity-70">(less than one chance in ten thousand it's a fluke)</span>
+</div>
+
+</v-click>
+
+<v-click>
+
+<div class="text-xl mt-5 opacity-80">
+Lint warnings, copy-paste rate, and comment density?
+<strong>No measurable difference between the two pools.</strong>
 </div>
 
 </v-click>
@@ -1602,18 +1703,78 @@ Lint counts, clone rate, and comment density show
 <v-click>
 
 <div class="mt-6 text-base opacity-60">
-ESLint omitted: silent-failure on the cohort. Five a-priori metrics, n=1,295 done.
+1 295 repos analysed · five quality lenses · the JavaScript linter
+silently failed and was excluded.
 </div>
 
 </v-click>
 
 <!--
-The takeaway slide. Pause before clicking the second beat. The audience
-came for "do swearing programmers write better code" and the answer is
-"the structural complexity is measurably higher in profane code, but
-the linter cannot tell them apart." That's a more interesting finding
-than the joke version of the question would have allowed. Q6/A
+The takeaway slide, in plain English. The headline reads "more
+convoluted" not "higher cyclomatic complexity." The p-value gets
+translated to "less than one chance in ten thousand it's a fluke" —
+this is technically loose but practically right and the audience can
+hold onto it. The effect size translates to "small — you'd have to
+look at many repos before noticing." Pause before clicking the lint
+beat — that's the actual surprise. The audience came for "do swearing
+programmers write better code" and the answer is "their code is
+measurably more tangled but the linter cannot tell them apart." Q6/A
 resolution slide — DO NOT skip this beat.
+-->
+
+---
+layout: center
+---
+
+# Same direction. Different conclusion.
+
+<div class="grid grid-cols-2 gap-8 mt-6 text-base">
+
+<div>
+
+**Strehmel 2023 — C only**
+
+Profane repos scored higher on a single composite quality
+score (5.87 vs 5.41 out of 10).
+
+→ "swearing correlates with <strong>better</strong> code"
+
+</div>
+
+<div>
+
+**This work — 18 languages, five lenses**
+
+Profane repos have <strong>more convoluted code</strong>;
+lint counts, copy-paste rate, and comment density are
+indistinguishable.
+
+→ swearing correlates with <strong>tangled</strong> code,
+not bad code
+
+</div>
+
+</div>
+
+<v-click>
+
+<div class="mt-8 text-lg opacity-80">
+Both signals point the same way: <strong>profane repos differ</strong>.
+The 2023 headline read this as "better"; once we ask five separate
+questions instead of one, "better" turns into "more tangled" — which
+is no longer obviously good.
+</div>
+
+</v-click>
+
+<!--
+Reconciliation slide. The 2023 thesis is not "wrong"; SoftWipe is a
+heterogeneous composite that mixes "code style" with "absence of
+warnings." On a finer-grained stack — separating cyclomatic complexity
+from lint counts from clone rate — the signal lives in *one* of those
+dimensions. The audience should leave thinking "the picture got
+sharper, not contradicted." That's the honest scientific outcome of
+methodology iteration.
 -->
 
 ---
@@ -1719,7 +1880,7 @@ exactly the kind of pattern they'd amplify.
 
 ---
 
-# The longitudinal redo
+# Future work — the longitudinal redo
 
 <v-clicks>
 
@@ -1727,9 +1888,19 @@ exactly the kind of pattern they'd amplify.
 - GH Archive is window-agnostic — one env var flip: `GHA_START` / `GHA_END`
 - Each window: ~5 h ingest + ~6 h Stage 4 + an afternoon of Stage 5
 - Publishable year-over-year finding
-- **IP-012** is this proposal, already drafted in my head
+- Plus: ESLint debug, NSFW sensitivity, Slovak / Czech / Russian
+  swearword lists, mixed-effects per-language model
 
 </v-clicks>
+
+<v-click>
+
+<div class="fiit-callout-info mt-4 text-sm">
+The pipeline is deliberately time-, language-, and dictionary-agnostic.
+Most of these follow-ups are env-var flips, not new pipelines.
+</div>
+
+</v-click>
 
 <!--
 The pipeline is deliberately time-agnostic. Everything from Stage 1
@@ -1839,10 +2010,17 @@ and one-line answers (keep in your head):
 
 **Prior art**
 
+- **Strehmel, J. (2023).** *Is there a Correlation between the Use of
+  Swearwords and Code Quality in Open Source Code?* B.Sc. thesis,
+  KIT Karlsruhe.
+- Zapletal, A. et al. (2021). *The SoftWipe tool and benchmark for
+  assessing coding standards adherence of scientific software.*
+  Sci. Rep. 11.
 - Guzman, E. & Azócar, D. (2014). *Sentiment analysis of commit
-  comments in GitHub*. MSR.
-- Miller, C. et al. (2022). *"Did you miss my comment or what?"*.
-  ICSE.
+  comments in GitHub.* MSR.
+- Miller, C. et al. (2022). *"Did you miss my comment or what?"* ICSE.
+- Baruch, Y. et al. (2017). *Swearing at work: the mixed outcomes
+  of profanity.* JMP.
 
 </div>
 
@@ -1854,6 +2032,7 @@ and one-line answers (keep in your head):
 - [LDNOOBW](https://github.com/LDNOOBW) — Shopify's bad-words list
 - [lingua-rs](https://github.com/pemistahl/lingua-rs) — language detection
 - [`emoji`](https://pypi.org/project/emoji/) — Unicode CLDR binding
+- [`lizard`](https://github.com/terryyin/lizard) — cyclomatic complexity, 18 langs
 
 </div>
 
@@ -1866,6 +2045,8 @@ and one-line answers (keep in your head):
   Math. Stat.
 - Kerby, D. (2014). *The simple difference formula: an approach to
   teaching nonparametric correlation*.
+- Bonferroni, C. (1936). *Teoria statistica delle classi e calcolo
+  delle probabilità.*
 
 </div>
 
@@ -1876,6 +2057,7 @@ and one-line answers (keep in your head):
 - [GH Archive](https://www.gharchive.org/) — 2011-present
 - [MongoDB docs](https://www.mongodb.com/docs/) — aggregation ref
 - [Slidev](https://sli.dev/) — this deck's engine
+- [github.com/Sibyx/oss-profanity](https://github.com/Sibyx/oss-profanity) — code, data, this deck
 
 </div>
 
@@ -1893,6 +2075,8 @@ this slide is photographed frequently — leave it up an extra beat.
 
 <v-clicks>
 
+- **Jan Strehmel & Alexandros Stamatakis (KIT)** — for the original
+  thesis and the question that started this
 - **FIIT STU** — hardware, PhD program, institutional support
 - **OpenCamp organisers** — for the slot, the venue, the stage
 - **LDNOOBW maintainers** — Shopify + contributors

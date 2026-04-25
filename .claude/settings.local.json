@@ -12,7 +12,8 @@
       "mcp__MongoDB__find",
       "mcp__MongoDB__db-stats",
       "WebFetch(domain:www.npmjs.com)",
-      "WebFetch(domain:registry.npmjs.org)"
+      "WebFetch(domain:registry.npmjs.org)",
+      "Bash(grep -c \"^---$\" presentation/slides.md)"
     ]
   },
   "enableAllProjectMcpServers": true,

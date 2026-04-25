@@ -20,6 +20,7 @@ changes are documented before implementation.
 | [IP-009](posts/ip-009-docker-test-harness.md) | Docker test harness — green-gate before OpenStack deployment | ✅ Implemented | 2026-04-24 |
 | [IP-010](posts/ip-010-deployment.md) | Faculty deployment — GHCR image + per-host compose | ✅ Implemented | 2026-04-25 |
 | [IP-011](posts/ip-011-initial-presentation.md) | Initial OpenCamp presentation — "Vulgarizmy, otvorený kód a jeho kvalita" | ✅ Implemented | 2026-04-25 |
+| [IP-012](posts/ip-012-final-presentation-polish.md) | Final presentation polish — origin story, Strehmel citation, plot integration | ✅ Implemented | 2026-04-25 |
 
 
 
