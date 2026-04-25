@@ -19,6 +19,7 @@ from oss_profanity.analyzers import (
     _source_scan,
 )
 from oss_profanity.analyzers._bandit import BanditResult
+from oss_profanity.analyzers._eslint import EslintResult
 from oss_profanity.analyzers._jscpd import JscpdResult
 from oss_profanity.analyzers._lizard import LizardResult
 from oss_profanity.analyzers._ruff import RuffResult
@@ -96,14 +97,25 @@ def test_run_all_returns_code_analysis_shape(
         "ruff_issues",
         "ruff_bug_issues",
         "ruff_style_issues",
+        "ruff_fixable",
         "ruff_issues_per_kloc",
         "ruff_bug_issues_per_kloc",
         "ruff_style_issues_per_kloc",
+        "ruff_fixable_per_kloc",
         "bandit_issues",
         "bandit_high_severity",
         "bandit_issues_per_kloc",
         "eslint_issues",
+        "eslint_errors",
+        "eslint_warnings",
+        "eslint_fatal_errors",
+        "eslint_fixable_errors",
+        "eslint_fixable_warnings",
         "eslint_issues_per_kloc",
+        "eslint_errors_per_kloc",
+        "eslint_warnings_per_kloc",
+        "eslint_fixable_errors_per_kloc",
+        "eslint_fixable_warnings_per_kloc",
         "jscpd_duplicate_lines",
         "jscpd_total_lines",
         "jscpd_duplicate_rate",
@@ -156,7 +168,7 @@ def test_run_all_only_dispatches_language_applicable_tools(
             if name == "bandit":
                 return BanditResult()
             if name == "eslint":
-                return 0
+                return EslintResult()
             if name == "lizard":
                 return LizardResult()
             if name == "jscpd":
@@ -277,7 +289,7 @@ def test_run_all_with_no_language_skips_linters(
     monkeypatch.setattr(_jscpd, "run", mark("jscpd", JscpdResult()))
     monkeypatch.setattr(_runner._ruff, "run", mark("ruff", RuffResult()))
     monkeypatch.setattr(_bandit, "run", mark("bandit", BanditResult()))
-    monkeypatch.setattr(_eslint, "run", mark("eslint", None))
+    monkeypatch.setattr(_eslint, "run", mark("eslint", EslintResult()))
 
     run_all(tmp_path, None)
     assert "walk" in calls

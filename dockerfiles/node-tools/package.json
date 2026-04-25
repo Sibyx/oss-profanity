@@ -1,0 +1,12 @@
+{
+  "name": "oss-profanity-node-tools",
+  "private": true,
+  "version": "0.0.0",
+  "description": "JS-side CLI baseline for oss-profanity workers (IP-013).",
+  "dependencies": {
+    "eslint": "10.2.1",
+    "@eslint/js": "10.0.1",
+    "typescript-eslint": "8.59.0",
+    "jscpd": "4.0.9"
+  }
+}

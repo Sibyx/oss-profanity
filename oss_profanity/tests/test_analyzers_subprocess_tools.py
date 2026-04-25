@@ -18,7 +18,7 @@ import pytest
 
 from oss_profanity.analyzers import _bandit, _eslint, _jscpd, _ruff
 from oss_profanity.analyzers._bandit import BanditResult, run as bandit_run
-from oss_profanity.analyzers._eslint import run as eslint_run
+from oss_profanity.analyzers._eslint import EslintResult, run as eslint_run
 from oss_profanity.analyzers._jscpd import JscpdResult, run as jscpd_run
 from oss_profanity.analyzers._ruff import RuffResult, run as ruff_run
 
@@ -38,14 +38,14 @@ def test_ruff_partitions_bug_vs_style(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     findings = [
-        {"code": "F401", "message": "unused import"},
-        {"code": "F811", "message": "redefinition"},
-        {"code": "B008", "message": "mutable default"},
-        {"code": "E501", "message": "line too long"},
-        {"code": "W605", "message": "invalid escape"},
-        {"code": "I001", "message": "unsorted imports"},
-        {"code": "N806", "message": "uppercase variable"},
-        {"code": "RUF100", "message": "unused noqa"},
+        {"code": "F401", "message": "unused import", "fix": {"applicability": "safe"}},
+        {"code": "F811", "message": "redefinition", "fix": None},
+        {"code": "B008", "message": "mutable default", "fix": None},
+        {"code": "E501", "message": "line too long", "fix": None},
+        {"code": "W605", "message": "invalid escape", "fix": {"applicability": "safe"}},
+        {"code": "I001", "message": "unsorted imports", "fix": {"applicability": "safe"}},
+        {"code": "N806", "message": "uppercase variable", "fix": None},
+        {"code": "RUF100", "message": "unused noqa", "fix": {"applicability": "safe"}},
     ]
     monkeypatch.setattr(
         _ruff,
@@ -59,6 +59,8 @@ def test_ruff_partitions_bug_vs_style(
     assert result.total == 8
     # Parity assertion from Success Criteria.
     assert result.total == (result.bug or 0) + (result.style or 0)
+    # IP-013: fixable counts findings whose JSON `fix` is non-null.
+    assert result.fixable == 4
 
 
 def test_ruff_empty_findings(
@@ -68,7 +70,7 @@ def test_ruff_empty_findings(
         _ruff, "run_tool", lambda *a, **k: _fake_proc(b"[]")
     )
     result = ruff_run(tmp_path)
-    assert result == RuffResult(total=0, bug=0, style=0)
+    assert result == RuffResult(total=0, bug=0, style=0, fixable=0)
 
 
 def test_ruff_exit_code_2_is_tool_error(
@@ -157,32 +159,94 @@ def test_eslint_sums_errors_and_warnings(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     per_file = [
-        {"filePath": "a.js", "errorCount": 2, "warningCount": 1},
-        {"filePath": "b.js", "errorCount": 0, "warningCount": 3},
-        {"filePath": "c.js", "errorCount": 5, "warningCount": 0},
+        {
+            "filePath": "a.js",
+            "errorCount": 2,
+            "warningCount": 1,
+            "fatalErrorCount": 0,
+            "fixableErrorCount": 1,
+            "fixableWarningCount": 0,
+        },
+        {
+            "filePath": "b.js",
+            "errorCount": 0,
+            "warningCount": 3,
+            "fatalErrorCount": 0,
+            "fixableErrorCount": 0,
+            "fixableWarningCount": 2,
+        },
+        {
+            "filePath": "c.js",
+            "errorCount": 5,
+            "warningCount": 0,
+            "fatalErrorCount": 0,
+            "fixableErrorCount": 3,
+            "fixableWarningCount": 0,
+        },
     ]
     monkeypatch.setattr(
         _eslint,
         "run_tool",
         lambda *a, **k: _fake_proc(json.dumps(per_file).encode()),
     )
-    assert eslint_run(tmp_path) == 2 + 1 + 0 + 3 + 5 + 0
+    result = eslint_run(tmp_path)
+    assert result == EslintResult(
+        errors=7,
+        warnings=4,
+        fatal_errors=0,
+        fixable_errors=4,
+        fixable_warnings=2,
+        total=11,
+    )
+    assert result.total == (result.errors or 0) + (result.warnings or 0)
 
 
-def test_eslint_empty_output_returns_zero(
+def test_eslint_tracks_fatal_errors_separately(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``fatal_errors`` (parse/config failures) must not roll into ``total``."""
+    per_file = [
+        {
+            "filePath": "broken.ts",
+            "errorCount": 1,  # eslint counts the fatal as an error too
+            "warningCount": 0,
+            "fatalErrorCount": 1,
+            "fixableErrorCount": 0,
+            "fixableWarningCount": 0,
+        },
+    ]
+    monkeypatch.setattr(
+        _eslint,
+        "run_tool",
+        lambda *a, **k: _fake_proc(json.dumps(per_file).encode()),
+    )
+    result = eslint_run(tmp_path)
+    assert result.fatal_errors == 1
+    assert result.errors == 1
+    assert result.total == 1
+
+
+def test_eslint_empty_output_returns_zeroes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
         _eslint, "run_tool", lambda *a, **k: _fake_proc(b"[]")
     )
-    assert eslint_run(tmp_path) == 0
+    assert eslint_run(tmp_path) == EslintResult(
+        errors=0,
+        warnings=0,
+        fatal_errors=0,
+        fixable_errors=0,
+        fixable_warnings=0,
+        total=0,
+    )
 
 
-def test_eslint_missing_binary_returns_none(
+def test_eslint_missing_binary_returns_default(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(_eslint, "run_tool", lambda *a, **k: None)
-    assert eslint_run(tmp_path) is None
+    assert eslint_run(tmp_path) == EslintResult()
 
 
 def test_eslint_empty_stdout_with_nonzero_exit_is_config_error(
@@ -193,16 +257,42 @@ def test_eslint_empty_stdout_with_nonzero_exit_is_config_error(
         "run_tool",
         lambda *a, **k: _fake_proc(b"", returncode=2),
     )
-    assert eslint_run(tmp_path) is None
+    assert eslint_run(tmp_path) == EslintResult()
 
 
-def test_eslint_invalid_json_returns_none(
+def test_eslint_invalid_json_returns_default(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
         _eslint, "run_tool", lambda *a, **k: _fake_proc(b"{not valid")
     )
-    assert eslint_run(tmp_path) is None
+    assert eslint_run(tmp_path) == EslintResult()
+
+
+_ESLINT_AVAILABLE = shutil.which("eslint") is not None
+
+
+@pytest.mark.skipif(
+    not _ESLINT_AVAILABLE, reason="eslint binary not on PATH"
+)
+def test_eslint_canary_real_binary(tmp_path: Path) -> None:
+    """The regression test that, had it existed, would have caught IP-013.
+
+    Lints a one-file fixture against the real ESLint binary using the
+    config path from ``Config.eslint_config_path``. A successful run
+    yields a fully-populated ``EslintResult``; a config-load failure
+    falls into the all-``None`` path.
+    """
+    fixture = tmp_path / "ok.js"
+    fixture.write_text("export const ok = 1;\n", encoding="utf-8")
+    result = eslint_run(tmp_path)
+    assert result.errors is not None
+    assert result.warnings is not None
+    assert result.fatal_errors is not None
+    assert result.fixable_errors is not None
+    assert result.fixable_warnings is not None
+    assert result.total is not None
+    assert result.total == result.errors + result.warnings
 
 
 # ---------- jscpd ----------

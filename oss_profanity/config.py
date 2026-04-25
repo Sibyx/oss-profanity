@@ -47,6 +47,7 @@ class Config:
     sampling_min_commits: int
     sampling_commit_bins: tuple[int, ...]
     cleanup_after_repo: bool
+    eslint_config_path: str
 
     @classmethod
     def from_env(cls) -> Config:
@@ -99,6 +100,10 @@ class Config:
             ),
             cleanup_after_repo=_parse_bool(
                 os.getenv("CLEANUP_AFTER_REPO", "true")
+            ),
+            eslint_config_path=os.getenv(
+                "ESLINT_CONFIG_PATH",
+                "/opt/node-tools/eslint.config.mjs",
             ),
         )
 

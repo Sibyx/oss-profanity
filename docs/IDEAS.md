@@ -106,17 +106,9 @@ Tree-sitter returns raw identifiers. A follow-up could split `CamelCase` / `snak
 
 # Promoted to high priority — surfaced by IP-008's pre-flight pass (2026-04-25)
 
-## ESLint analyser silent-failure
+## ~~ESLint analyser silent-failure~~ — resolved by [IP-013](proposals/posts/ip-013-eslint-flat-config-fix.md) (2026-04-25)
 
-**Source:** IP-008 pre-flight Mann-Whitney pass over the `done` cohort.
-
-`code_analysis.eslint_issues` is `null` on **0 / 1,295** done repos — i.e., 100 % missingness. The analyser exec succeeds (no `git: ...` failure reasons; the worker's `_processor.py` doesn't crash) but the field never lands on the document. Likely culprits, ranked by suspicion:
-
-1. The flat-config v10 invocation (`/opt/baseline-eslint.config.mjs`) is exiting non-zero on every invocation, and `_eslint.run()` swallows the failure into a `None` rather than logging the stderr.
-2. `oss_profanity.analyzers._eslint.run()` returns the count under a different key than `code_analysis._writer` is looking for — silent shape mismatch.
-3. ESLint's flat-config rule set rejects every JS/TS file as un-parseable on the cohort's older commit shas (2020-era source against eslint v10).
-
-**Trigger to promote:** the talk lands 2026-04-25; this is the highest-priority post-talk follow-up. The ESLint hole leaves the JS/TS column of the paper empty. Next step: open a one-off `npm run` invocation against one of the JS-primary cohort repos manually and capture stderr to identify the failure mode.
+Diagnosed as `npm install -g` + ESM bare-specifier resolution from `/opt/baseline-eslint.config.mjs`. Fix landed: unified `/opt/node-tools/` npm project + six-field `EslintResult` + ruff `fixable` alignment + JS/TS-subset backfill. Cohort backfill is the operator-side step that finalises the success criteria.
 
 ---
 

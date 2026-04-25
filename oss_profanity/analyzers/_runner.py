@@ -51,7 +51,7 @@ def run_all(repo_dir: Path, primary_lang: str | None) -> dict[str, Any]:
 
         ruff_fut: Future[_ruff.RuffResult] | None = None
         bandit_fut: Future[_bandit.BanditResult] | None = None
-        eslint_fut: Future[int | None] | None = None
+        eslint_fut: Future[_eslint.EslintResult] | None = None
 
         if primary_lang in _PYTHON_TAGS:
             ruff_fut = pool.submit(_ruff.run, repo_dir)
@@ -77,7 +77,11 @@ def run_all(repo_dir: Path, primary_lang: str | None) -> dict[str, Any]:
             if bandit_fut
             else _bandit.BanditResult()
         )
-        eslint = _resolve(eslint_fut, None) if eslint_fut else None
+        eslint = (
+            _resolve(eslint_fut, _eslint.EslintResult())
+            if eslint_fut
+            else _eslint.EslintResult()
+        )
 
     return _compose(source, lizard, jscpd, ruff, bandit, eslint)
 
@@ -102,7 +106,7 @@ def _compose(
     jscpd: _jscpd.JscpdResult,
     ruff: _ruff.RuffResult,
     bandit: _bandit.BanditResult,
-    eslint: int | None,
+    eslint: _eslint.EslintResult,
 ) -> dict[str, Any]:
     loc = source.loc_total
     jscpd_rate: float | None = None
@@ -125,16 +129,30 @@ def _compose(
         "ruff_issues": ruff.total,
         "ruff_bug_issues": ruff.bug,
         "ruff_style_issues": ruff.style,
+        "ruff_fixable": ruff.fixable,
         "ruff_issues_per_kloc": _per_kloc(ruff.total, loc),
         "ruff_bug_issues_per_kloc": _per_kloc(ruff.bug, loc),
         "ruff_style_issues_per_kloc": _per_kloc(ruff.style, loc),
+        "ruff_fixable_per_kloc": _per_kloc(ruff.fixable, loc),
         # Bandit.
         "bandit_issues": bandit.total,
         "bandit_high_severity": bandit.high_severity,
         "bandit_issues_per_kloc": _per_kloc(bandit.total, loc),
-        # ESLint.
-        "eslint_issues": eslint,
-        "eslint_issues_per_kloc": _per_kloc(eslint, loc),
+        # ESLint (IP-013): six-field shape; ``eslint_issues`` kept as
+        # ``errors + warnings`` for IP-001 / IP-008 back-compat.
+        "eslint_issues": eslint.total,
+        "eslint_errors": eslint.errors,
+        "eslint_warnings": eslint.warnings,
+        "eslint_fatal_errors": eslint.fatal_errors,
+        "eslint_fixable_errors": eslint.fixable_errors,
+        "eslint_fixable_warnings": eslint.fixable_warnings,
+        "eslint_issues_per_kloc": _per_kloc(eslint.total, loc),
+        "eslint_errors_per_kloc": _per_kloc(eslint.errors, loc),
+        "eslint_warnings_per_kloc": _per_kloc(eslint.warnings, loc),
+        "eslint_fixable_errors_per_kloc": _per_kloc(eslint.fixable_errors, loc),
+        "eslint_fixable_warnings_per_kloc": _per_kloc(
+            eslint.fixable_warnings, loc
+        ),
         # jscpd.
         "jscpd_duplicate_lines": jscpd.duplicate_lines,
         "jscpd_total_lines": jscpd.total_lines,

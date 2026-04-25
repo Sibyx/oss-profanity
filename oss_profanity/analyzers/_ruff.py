@@ -29,11 +29,17 @@ _BUG_PREFIXES: Final[tuple[str, ...]] = ("F", "E9", "B", "S", "RUF")
 
 @dataclass(frozen=True, slots=True)
 class RuffResult:
-    """Ruff findings broken into total / bug / style counts."""
+    """Ruff findings broken into total / bug / style / fixable counts.
+
+    ``fixable`` counts findings whose JSON ``fix`` element is non-null
+    (ruff would auto-apply a fix with ``--fix``). Provides a fix-rate
+    axis comparable to ESLint's ``fixable_errors + fixable_warnings``.
+    """
 
     total: int | None = None
     bug: int | None = None
     style: int | None = None
+    fixable: int | None = None
 
 
 def run(repo_dir: Path, timeout: int = 120) -> RuffResult:
@@ -63,13 +69,18 @@ def run(repo_dir: Path, timeout: int = 120) -> RuffResult:
 
     bug = 0
     style = 0
+    fixable = 0
     for item in findings:
-        code = item.get("code", "") if isinstance(item, dict) else ""
+        if not isinstance(item, dict):
+            continue
+        code = item.get("code", "")
         if _is_bug_code(code):
             bug += 1
         else:
             style += 1
-    return RuffResult(total=bug + style, bug=bug, style=style)
+        if item.get("fix") is not None:
+            fixable += 1
+    return RuffResult(total=bug + style, bug=bug, style=style, fixable=fixable)
 
 
 def _is_bug_code(code: str) -> bool:

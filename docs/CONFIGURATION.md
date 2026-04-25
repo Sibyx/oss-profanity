@@ -8,7 +8,7 @@ Every tunable in the oss-profanity pipeline, with defaults, source files, and wh
 |---------------------------------------|-------------------------------------------------------------|--------------------------------------------------------------------|
 | **Environment**                       | Pipeline tunables (Mongo, concurrency, ingest window, caps) | Export env vars before launching `ingest` / worker / harness       |
 | **Module constants**                  | Detection heuristics, tool flags, skip rules                | Edit the owning module; constants are intentionally not env-driven |
-| **`/opt/baseline-eslint.config.mjs`** | ESLint rule set                                             | Shipped by IP-009's Dockerfile; change in the image, not per-repo  |
+| **`/opt/node-tools/`**                | ESLint flat-config + jscpd CLI (one npm project)            | Shipped by IP-013's Dockerfile; change in the image, not per-repo  |
 | **External binaries on PATH**         | `ruff`, `eslint`, `jscpd`                                   | Installed by IP-009's Dockerfile / IP-010's worker setup script    |
 
 ## Environment variables (IP-001)
@@ -36,6 +36,7 @@ Loaded once at import time into a frozen dataclass in [`oss_profanity/config.py`
 | `SAMPLING_MIN_COMMITS`       | `20`                                                 | IP-006: minimum `total_commits_in_window` for cohort eligibility (DRAFT §2 floor)      |
 | `SAMPLING_COMMIT_BINS`       | `20,50,200,1000`                                     | IP-006: log-spaced commit-count breakpoints for bin-matching cohort B to cohort A; CSV of strictly-monotonic ints |
 | `CLEANUP_AFTER_REPO`         | `true`                                               | IP-007: `rmtree` the per-repo clone tree after each analysis. Flip to `false` locally to keep the clone around for debugging a failing repo. Accepts `true/false/1/0/yes/no/on/off` (case-insensitive) |
+| `ESLINT_CONFIG_PATH`         | `/opt/node-tools/eslint.config.mjs`                  | IP-013: absolute path to the ESLint flat-config file. Override only if you mount the toolchain at a different location (rare). The config and its `node_modules` are a unit — point this at a config whose siblings cannot resolve `@eslint/js` and the analyzer falls back to all-`None` |
 
 ### `.env` file support
 
@@ -208,6 +209,8 @@ Per-function percentile aggregation is unconditional — lizard's XML carries th
 
 Any new ruff rule family not in `_BUG_PREFIXES` lands in `style` — conservative (under-reports bugs, doesn't invent them). The test suite pins `total == bug + style` so drift is caught fast.
 
+`RuffResult` exposes four counts (IP-013): `total`, `bug`, `style`, and `fixable`. `fixable` is the count of findings whose JSON `fix` element is non-null (ruff would auto-apply a fix with `--fix`); it is a fix-rate axis comparable to ESLint's `fixable_errors + fixable_warnings`. Surfaced in `code_analysis` as `ruff_fixable` and `ruff_fixable_per_kloc`.
+
 ### Bandit wrapper — [`_bandit.py`](../oss_profanity/analyzers/_bandit.py)
 
 | Constant | Default | When to change |
@@ -218,15 +221,15 @@ Bandit runs with its default rule set via `-r --exit-zero`. To restrict, add `-s
 
 ### ESLint wrapper — [`_eslint.py`](../oss_profanity/analyzers/_eslint.py)
 
-| Constant | Default | When to change |
+| Setting | Default | When to change |
 |---|---|---|
-| `_DEFAULT_CONFIG` | `/opt/baseline-eslint.config.mjs` | Never in this module — IP-009 ships the config |
+| `Config.eslint_config_path` (env `ESLINT_CONFIG_PATH`) | `/opt/node-tools/eslint.config.mjs` | Only when mounting the toolchain at a different location; the config and its sibling `node_modules` are a unit |
 | `run(timeout=...)` | `180` s | ESLint is the slowest tool; real-data calibration |
 
-**The baseline config lives at [`dockerfiles/eslint.config.mjs`](../dockerfiles/eslint.config.mjs) in the repo** and is copied into `/opt/baseline-eslint.config.mjs` during image build (IP-009 Q8). Committing it to the repo keeps every `recommended`-rule change diff-reviewable via normal git history.
+**The baseline config lives at [`dockerfiles/node-tools/eslint.config.mjs`](../dockerfiles/node-tools/eslint.config.mjs) in the repo** and is copied (together with its sibling `package.json` and `canary.js`) into `/opt/node-tools/` during image build (IP-013). Committing the directory to the repo keeps every `recommended`-rule change diff-reviewable via normal git history.
 
 ```js
-// dockerfiles/eslint.config.mjs
+// dockerfiles/node-tools/eslint.config.mjs
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 export default [
@@ -236,7 +239,11 @@ export default [
 ];
 ```
 
-`@eslint/js`, `typescript-eslint`, and `eslint` itself are **exact-pinned** in the Dockerfile (IP-009 Q6: `eslint@10.2.1`, `@eslint/js@10.0.1`, `typescript-eslint@8.59.0`) so `recommended` means the same thing on every worker. Bump the config and the pins together.
+`@eslint/js`, `typescript-eslint`, `eslint` itself, and `jscpd` are **exact-pinned** in [`dockerfiles/node-tools/package.json`](../dockerfiles/node-tools/package.json) (IP-013: `eslint@10.2.1`, `@eslint/js@10.0.1`, `typescript-eslint@8.59.0`, `jscpd@4.0.9`) so `recommended` means the same thing on every worker. The flat-config and the package pins are one atomic unit — bump them together.
+
+**Why a sibling project, not `npm install -g`?** The flat-config imports `@eslint/js` and `typescript-eslint` as bare specifiers. Node ESM resolves bare specifiers from a `node_modules` chain rooted at the **importing file's directory** — it does not consult the global prefix, and it does not consult `NODE_PATH` for top-level `import` statements. A globally-installed ESLint with a `/opt/baseline-eslint.config.mjs` cannot resolve those imports, exits with `ERR_MODULE_NOT_FOUND`, and the wrapper records all-`None`. IP-013 closed that hole.
+
+`EslintResult` exposes six counts (IP-013): `errors`, `warnings`, `fatal_errors`, `fixable_errors`, `fixable_warnings`, and `total = errors + warnings`. `fatal_errors` are parse/config failures and intentionally do **not** roll into `total` (they represent files ESLint could not analyse, not lint findings). All six are populated together; all `None` on any failure path. Surfaced in `code_analysis` as `eslint_errors`, `eslint_warnings`, `eslint_fatal_errors`, `eslint_fixable_errors`, `eslint_fixable_warnings`, `eslint_issues` (= total, kept for IP-001 back-compat), plus a `_per_kloc` sibling for each non-fatal count.
 
 ### jscpd wrapper — [`_jscpd.py`](../oss_profanity/analyzers/_jscpd.py)
 
@@ -265,8 +272,8 @@ These are **not Python deps**; IP-009's Dockerfile and IP-010's worker setup scr
 | `lizard` | `requirements.txt` (Python package with CLI) | `_lizard.run` |
 | `bandit` | `requirements.txt` | `_bandit.run` |
 | `ruff` | Dockerfile (Rust binary) | `_ruff.run` |
-| `eslint`, `@eslint/js`, `typescript-eslint` | Dockerfile (Node) | `_eslint.run` |
-| `jscpd` | Dockerfile (Node) | `_jscpd.run` |
+| `eslint`, `@eslint/js`, `typescript-eslint` | `dockerfiles/node-tools/package.json` (IP-013) | `_eslint.run` |
+| `jscpd` | `dockerfiles/node-tools/package.json` (IP-013) | `_jscpd.run` |
 | `git` | Dockerfile (system) | IP-007 worker clone |
 | `node`, `npm` | Dockerfile (system) | `eslint`, `jscpd` runtime |
 
