@@ -76,38 +76,6 @@ measurable.
 
 ---
 
-# The 2015 internet moment
-
-Remember this one?
-
-<v-clicks>
-
-- Reddit / HackerNoon thread, circa 2015
-- One developer ran a script over a tiny sample
-- Concluded: "code with profanity has fewer bugs"
-- 40 000 upvotes. Zero methodology. One chart.
-- Became internet folklore.
-
-</v-clicks>
-
-<v-click>
-
-> So: is it **true**? Nobody ever went back and checked properly.
-
-</v-click>
-
-<!--
-Most people in this room remember the post. It's fun folklore, but as
-research it was one person grepping their own projects. No matched
-cohorts, no statistical test, no hypothesis registration. If that HN
-thread were a research paper, no reviewer would send it back for
-revisions — they'd reject it outright. So: let's actually do the work.
--->
-
----
-layout: center
----
-
 # The question
 
 <div class="text-3xl font-semibold mt-8 leading-snug">
@@ -559,7 +527,7 @@ claims per second max, Mongo barely notices.
 
 - **`ruff` 0.15** — Python lints (bug-class + style)
 - **`bandit` 1.9** — Python security
-- **`eslint` 10 (flat config)** — JS/TS lints
+- **`eslint` 10 (flat config)** — JS/TS lints *(silent-failure on cohort — see footnote)*
 - **`lizard` 1.17** — cyclomatic complexity, 18 languages
 - **`jscpd` 4** — clone detection across JS / TS / HTML / CSS
 
@@ -569,6 +537,16 @@ claims per second max, Mongo barely notices.
 
 Each tool answers a different question. We do not combine their
 scores into one "quality number" — that's where snake-oil lives.
+
+</v-click>
+
+<v-click>
+
+<div class="fiit-callout mt-4 text-sm">
+ESLint failed silently for 100% of the cohort (0 / 1,295 done repos).
+Lizard covers JS/TS via tree-sitter for this run; ESLint debug is the
+top post-talk follow-up.
+</div>
 
 </v-click>
 
@@ -641,19 +619,21 @@ binding is fast (parses a typical source file in microseconds).
 <v-clicks>
 
 - **Mann-Whitney U**, two-sided
-- Per quality dimension, six tests total:
-  - `ruff_issues_per_kloc`, `eslint_issues_per_kloc`
-  - `lizard_avg_ccn`, `lizard_max_ccn`
-  - `jscpd_clones_per_kloc`, `comment_density`
-- **Bonferroni correction** for multiple comparisons (α = 0.05 / 6)
+- Five a-priori tests (eslint dropped — see Stage 4 slide):
+  - `ruff_issues_per_kloc`
+  - `lizard_avg_ccn`, `lizard_ccn_p99`
+  - `jscpd_duplicate_rate`, `comment_to_code_ratio`
+- **Bonferroni** at α = 0.05 / 5 = **0.01**
 - Effect size: rank-biserial correlation
 
 </v-clicks>
 
 <v-click>
 
-<div class="fiit-callout mt-4">
-This is what IP-008 ships. It's running on the faculty hosts right now — Mann-Whitney numbers were NOT ready in time for this talk.
+<div class="fiit-callout-info mt-4 text-sm">
+Family-wise error: with 5 tests at α=0.05 each, P(at least one false
+positive) ≈ 23 %. Bonferroni divides α by the test count so the family
+stays at 5 %.
 </div>
 
 </v-click>
@@ -726,7 +706,7 @@ journal, a reviewer can literally re-run the numbers.
 
 <v-clicks>
 
-- **LDNOOBW is English-centric** — misses Slovak, Czech, Russian swearing
+- **LDNOOBW is English-centric** — misses / incomplete swearing for other languages
 - **Short commit messages are noisy** — one `fuck` in 3 commits ≠ culture
 - **Forks inherit parent's history** — we don't (yet) deduplicate forked commits
 - **Sample frame is 2020** — won't generalise to post-Copilot code
@@ -1029,47 +1009,6 @@ Content-addressed deploy is one of the most valuable things you can
 do for a small project. GHCR is free for public packages, integrated
 with Actions, and operator-facing pulls are unauthenticated. The SHA
 tag is what the paper's "Reproducibility" section cites.
--->
-
----
-
-# Testing
-
-<div class="grid grid-cols-3 gap-4 mt-4">
-
-<div class="stat-big">
-  <div class="value">292</div>
-  <div class="label">tests passing</div>
-</div>
-
-<div class="stat-big">
-  <div class="value">17</div>
-  <div class="label">modules mypy --strict</div>
-</div>
-
-<div class="stat-big">
-  <div class="value">0</div>
-  <div class="label">broken builds on master</div>
-</div>
-
-</div>
-
-<v-click>
-
-<div class="mt-6">
-
-Integration tests hit a throwaway Mongo via `clean_db` fixture.
-Smoke test `./scripts/smoke.sh` green-gates every merge.
-
-</div>
-
-</v-click>
-
-<!--
-The paper needs numbers; the numbers need the tests. If an aggregation
-is off by a factor of 10, the p-value is meaningless. Test coverage
-isn't the point — test *correctness* is. Every Mongo aggregation has
-at least one fixture test that validates its output shape.
 -->
 
 ---
@@ -1591,36 +1530,34 @@ won't read them on-screen.
 
 ---
 
-# What's NOT in this deck
+# Stage 5 results · five a-priori metrics
 
-<v-clicks>
+<div class="grid grid-cols-2 gap-4 mt-4">
 
-- **Mann-Whitney U statistic** — Stage 5 is running
-- **Effect size** (rank-biserial correlation) — ditto
-- **Per-language subgroup plots** — ditto
-- **p-values** — ditto
+<img src="/images/plots/fig05_quality_forest.png" />
 
-</v-clicks>
+<img src="/images/plots/fig03_lizard_avg_ecdf.png" />
 
-<v-click>
-
-<div class="fiit-callout mt-6">
-These ship with the paper. Come back for the follow-up. I promise a
-p-value next time.
 </div>
 
-</v-click>
+<div class="text-center mt-2 text-sm opacity-70">
+Forest plot · five a-priori metrics, Bonferroni at α/5 = 0.01 ·
+ECDF · cyclomatic complexity (mean) per cohort
+</div>
 
 <!--
-Epistemic humility as a design decision. I'd rather leave gaps in the
-deck than fabricate numbers. Anyone who shows p-values at this stage
-of a research project is either lying or didn't do the matching
-properly. Say what you have, say what you don't, move on.
+The headline result. Forest plot on the left shows that only the three
+lizard rows survive Bonferroni — ruff, jscpd, comment_to_code_ratio
+sit on or near zero. ECDF on the right is the visual analogue of the
+rank test: profane curve sits to the right of clean across the whole
+range. Pause here for a beat. ESLint is not on the forest plot — it
+is the only metric where the analyser silent-failed; reporting "no
+data" rather than running an empty test.
 -->
 
 ---
 
-# The one-sentence finding (so far)
+# The descriptive picture (June 2020 cohort)
 
 <div class="text-2xl mt-8 leading-relaxed">
 
@@ -1629,15 +1566,54 @@ properly. Say what you have, say what you don't, move on.
 - Profanity is <strong>rare</strong> — 0.08 % of commits.
 - Emoji is <strong>6× more common</strong> — 0.49 %.
 - Bots infiltrated commit conventions.
-- The matched cohort is ready for <strong>inferential analysis</strong>.
+- The matched cohort drained: <strong>1,295 done</strong>.
 
 </v-clicks>
 
 </div>
 
 <!--
-Four beats. Descriptively, that's what we have. Inferentially, that's
-what we'll have soon. Both sentences are honest.
+Descriptive layer. The big numbers from the ingest. After this we hit
+the inferential answer slide.
+-->
+
+---
+layout: center
+---
+
+# The inferential answer
+
+<div class="text-3xl font-semibold mt-8 leading-snug">
+Profane repos have <span style="color:#00A9E0">~10 %</span>
+higher median cyclomatic complexity
+<br/>
+(<span style="color:#00A9E0">p &lt; 10⁻⁴</span>, small effect <span style="color:#00A9E0">r<sub>rb</sub> ≈ 0.13</span>).
+</div>
+
+<v-click>
+
+<div class="text-xl mt-6 opacity-80">
+Lint counts, clone rate, and comment density show
+<strong>no significant cohort difference</strong>.
+</div>
+
+</v-click>
+
+<v-click>
+
+<div class="mt-6 text-base opacity-60">
+ESLint omitted: silent-failure on the cohort. Five a-priori metrics, n=1,295 done.
+</div>
+
+</v-click>
+
+<!--
+The takeaway slide. Pause before clicking the second beat. The audience
+came for "do swearing programmers write better code" and the answer is
+"the structural complexity is measurably higher in profane code, but
+the linter cannot tell them apart." That's a more interesting finding
+than the joke version of the question would have allowed. Q6/A
+resolution slide — DO NOT skip this beat.
 -->
 
 ---

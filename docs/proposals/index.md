@@ -16,6 +16,7 @@ changes are documented before implementation.
 | [IP-005](posts/ip-005-gh-archive-ingest.md) | GH Archive ingest — Stage 1+2 streaming + scoring pipeline | ✅ Implemented | 2026-04-24 |
 | [IP-006](posts/ip-006-cohort-sampling.md) | Cohort sampling — Stage 3 stratified cohort promotion | ✅ Implemented | 2026-04-24 |
 | [IP-007](posts/ip-007-repo-worker.md) | Repo worker — Stage 4 claim-clone-analyze loop + GitHub metadata enrichment | ✅ Implemented | 2026-04-24 |
+| [IP-008](posts/ip-008-aggregation-and-plots.md) | Aggregation, statistics, and plots — Jupyter notebook for the OpenCamp deck | ✅ Implemented | 2026-04-25 |
 | [IP-009](posts/ip-009-docker-test-harness.md) | Docker test harness — green-gate before OpenStack deployment | ✅ Implemented | 2026-04-24 |
 | [IP-010](posts/ip-010-deployment.md) | Faculty deployment — GHCR image + per-host compose | ✅ Implemented | 2026-04-25 |
 | [IP-011](posts/ip-011-initial-presentation.md) | Initial OpenCamp presentation — "Vulgarizmy, otvorený kód a jeho kvalita" | ✅ Implemented | 2026-04-25 |

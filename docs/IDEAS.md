@@ -101,3 +101,73 @@ A follow-up study could flip the primary axis: draw the top-750 high-emoji repos
 Tree-sitter returns raw identifiers. A follow-up could split `CamelCase` / `snake_case` / `kebab-case` into word parts before feeding to profanity scan, catching things like `assHat` where `asshat` is in LDNOOBW but `assHat` is not.
 
 **Trigger to promote:** Stage 5 validation finds a meaningful profane-identifier miss rate from the unsplit text path.
+
+---
+
+# Promoted to high priority — surfaced by IP-008's pre-flight pass (2026-04-25)
+
+## ESLint analyser silent-failure
+
+**Source:** IP-008 pre-flight Mann-Whitney pass over the `done` cohort.
+
+`code_analysis.eslint_issues` is `null` on **0 / 1,295** done repos — i.e., 100 % missingness. The analyser exec succeeds (no `git: ...` failure reasons; the worker's `_processor.py` doesn't crash) but the field never lands on the document. Likely culprits, ranked by suspicion:
+
+1. The flat-config v10 invocation (`/opt/baseline-eslint.config.mjs`) is exiting non-zero on every invocation, and `_eslint.run()` swallows the failure into a `None` rather than logging the stderr.
+2. `oss_profanity.analyzers._eslint.run()` returns the count under a different key than `code_analysis._writer` is looking for — silent shape mismatch.
+3. ESLint's flat-config rule set rejects every JS/TS file as un-parseable on the cohort's older commit shas (2020-era source against eslint v10).
+
+**Trigger to promote:** the talk lands 2026-04-25; this is the highest-priority post-talk follow-up. The ESLint hole leaves the JS/TS column of the paper empty. Next step: open a one-off `npm run` invocation against one of the JS-primary cohort repos manually and capture stderr to identify the failure mode.
+
+---
+
+## Sensitivity analysis — drop NSFW subgenre, re-run MWU
+
+**Source:** IP-008 pre-flight + Slide 41 (NSFW subgenre footnote).
+
+Top-30 profanity contains a cluster (`guro`, `vibrator`, `genitals`, `porn`, `cum`, `hentai`, `hardcore`) that signals adult-content tooling on GitHub rather than "developers being grumpy." These repos sit at the maximum-profanity end of cohort A and may be driving the lizard complexity signal disproportionately.
+
+A sensitivity analysis would: (a) classify cohort A repos by NSFW topic from `github_metadata.topics` + a hand-curated keyword list against `description`; (b) re-run the six a-priori MWU tests with the NSFW subset excluded; (c) report whether the `lizard_avg_ccn` p-value survives.
+
+**Trigger to promote:** anyone in Q&A asks "are your results NSFW-driven?" — at which point the answer "I don't know yet" becomes the answer "let me check." For the paper revision this is a must-do; for the talk it's a nice-to-have if there's notebook time before the dry run.
+
+---
+
+## LOC-and-language stratified sub-analysis for the paper
+
+**Source:** IP-008 pre-flight; Python subset (n=112 vs 96) and JS/TS subset (lizard only — eslint hole) already produce different effect sizes than the pooled analysis. Per-language `lizard_avg_ccn`:
+
+- Python: median 2.72 → 3.10, p = 0.18 (not significant on its own)
+- JS/TS: median 1.67 → 1.83, p = 0.54 (not significant on its own)
+- Pooled: p = 2 × 10⁻⁴
+
+The pooled significance is partially driven by between-language variance (Python repos are more complex than JS repos at the median, in both cohorts). A proper paper-grade analysis would: (a) run a mixed-effects model with language as a random intercept, or (b) report per-language MWU + meta-analyse the effect sizes.
+
+**Trigger to promote:** paper revision. For the talk, the pooled lizard signal is the headline; the per-language footnote stays in NOTES.md.
+
+---
+
+## Outlier audit — `lizard_max_ccn = 65,632`
+
+**Source:** IP-008 pre-flight; one clean-cohort repo carries a `lizard_max_ccn` of 65,632 (the next-highest is ~11,000). The other extreme: `loc_total = 3,738,122` in one tsx-primary repo (likely a `node_modules`-leak or generated bundle).
+
+A 30-minute audit pass: pull the worst-N rows for `lizard_max_ccn`, `lizard_ccn_p99`, `loc_total`, and `files_scanned`, eyeball the `full_name`, decide whether they're legitimate or analyser bugs (e.g., did our `_walk.py` skip rule miss a vendored bundle?). If three or more are spurious, add a vendored-bundle skip rule to IP-004.
+
+**Trigger to promote:** paper supplement section 3 — outlier handling.
+
+---
+
+## Effect-size CIs in the paper, not just the deck
+
+**Source:** IP-008 pre-flight; the notebook reports rank-biserial correlation but the bootstrap 95 % CIs are only on the forest plot. For the paper, every reported `r_rb` should carry its CI in the table.
+
+Cheap to add — `scipy.stats.bootstrap` already in the notebook. Trigger: paper revision.
+
+---
+
+## Cross-window comparison (2020-06 vs 2024-06 vs 2026-06)
+
+**Source:** IP-011 Act VI hypothesis; IP-012 placeholder.
+
+Same pipeline, three windows. The lizard complexity finding becomes the *baseline*; the question is whether the gap shrinks, stays, or grows in the post-LLM era. The pipeline is window-agnostic — `GHA_START` / `GHA_END` env flip. Cost: ~10 h compute per window.
+
+**Trigger to promote:** paper revision; or IP-012 if a window-comparison paper becomes a goal of its own.
