@@ -1,0 +1,37 @@
+cff-version: 1.2.0
+message: "If you use this software or its results, please cite it as below."
+type: software
+title: "oss-profanity: profanity, emoji, and OSS code quality"
+version: 0.1.0
+date-released: 2026-04-25
+authors:
+  - family-names: Dubec
+    given-names: Jakub
+    email: jakub.dubec@stuba.sk
+    affiliation: "Faculty of Informatics and Information Technologies, Slovak University of Technology in Bratislava"
+url: "https://github.com/Sibyx/oss-profanity"
+repository-code: "https://github.com/Sibyx/oss-profanity"
+keywords:
+  - mining-software-repositories
+  - github
+  - gh-archive
+  - profanity
+  - emoji
+  - code-quality
+  - static-analysis
+abstract: >-
+  A research pipeline that mines one month of GH Archive data, scores
+  profanity and emoji signals in commit messages and source comments,
+  runs static analysers (ruff, lizard, bandit, jscpd, ESLint, tree-sitter)
+  over a stratified cohort of repositories, and tests for correlation
+  between each signal and common code-quality metrics.
+references:
+  - type: thesis
+    title: "Influence of profanity in commit messages on the quality of source code"
+    authors:
+      - family-names: Strehmel
+        given-names: Jan
+    year: 2023
+    institution:
+      name: "Karlsruhe Institute of Technology"
+    thesis-type: "Bachelor's thesis"

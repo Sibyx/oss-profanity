@@ -1,8 +1,9 @@
 {
-  "name": "oss-profanity-opencamp",
+  "name": "oss-profanity-slides",
   "version": "0.1.0",
   "private": true,
-  "description": "IP-011: Bratislava OpenCamp 2026 deck — 'Vulgarizmy, otvorený kód a jeho kvalita'",
+  "description": "Slidev deck for the OpenCamp talk on profanity, emoji, and OSS code quality.",
+  "author": "Jakub Dubec <jakub.dubec@stuba.sk>",
   "scripts": {
     "dev": "slidev slides.md --open",
     "build": "slidev build slides.md --out dist",

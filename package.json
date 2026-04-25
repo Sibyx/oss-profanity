@@ -1,7 +1,15 @@
 {
   "name": "oss-profanity",
+  "version": "0.1.0",
+  "description": "Research pipeline correlating profanity and emoji in OSS commit messages with static-analysis code-quality metrics.",
   "type": "module",
   "private": true,
+  "author": "Jakub Dubec <jakub.dubec@stuba.sk>",
+  "homepage": "https://github.com/Sibyx/oss-profanity",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sibyx/oss-profanity.git"
+  },
   "scripts": {
     "build": "slidev build presentation/slides.md",
     "dev": "slidev presentation/slides.md --open",

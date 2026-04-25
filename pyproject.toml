@@ -1,0 +1,68 @@
+[project]
+name = "oss-profanity"
+version = "0.1.0"
+description = "Research pipeline correlating profanity and emoji in OSS commit messages with static-analysis code-quality metrics."
+readme = "README.md"
+requires-python = ">=3.14"
+authors = [
+    { name = "Jakub Dubec", email = "jakub.dubec@stuba.sk" },
+]
+keywords = [
+    "mining-software-repositories",
+    "github",
+    "gh-archive",
+    "profanity",
+    "emoji",
+    "code-quality",
+    "static-analysis",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+]
+dependencies = [
+    "pymongo>=4.6",
+    "pydantic>=2.6",
+    "lingua-language-detector>=2.2",
+    "emoji>=2.15",
+    "tree-sitter>=0.23",
+    "tree-sitter-language-pack==1.6.2",
+    "identify>=2.6",
+    "lizard==1.17.25",
+    "bandit==1.9.4",
+    "ruff==0.15.12",
+    "httpx[http2]>=0.28",
+    "orjson>=3.11",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "mypy>=1.8",
+    "scipy>=1.13",
+    "numpy>=2.0",
+    "pandas>=2.2",
+    "matplotlib>=3.8",
+    "seaborn>=0.13",
+    "jupyter>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Sibyx/oss-profanity"
+Repository = "https://github.com/Sibyx/oss-profanity.git"
+Changelog = "https://github.com/Sibyx/oss-profanity/blob/master/CHANGELOG.md"
+Issues = "https://github.com/Sibyx/oss-profanity/issues"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["oss_profanity*"]
+exclude = ["tests*", "notebooks*", "scripts*", "dockerfiles*"]
