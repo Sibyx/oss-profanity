@@ -232,6 +232,76 @@ def test_git_error_classified_as_git(
     assert failed[0][1].startswith("git: fatal: remote not found")
 
 
+def test_cleanup_after_repo_false_leaves_clone_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CLEANUP_AFTER_REPO=false preserves the clone tree for local debugging."""
+    new_config = dataclasses.replace(
+        _scratch.config, scratch_dir=str(tmp_path), cleanup_after_repo=False
+    )
+    monkeypatch.setattr(_scratch, "config", new_config)
+    monkeypatch.setattr(_processor, "config", new_config)
+    _stub_cas_set(monkeypatch)
+    _stub_mark_failed(monkeypatch)
+
+    monkeypatch.setattr(_github, "fetch_metadata", lambda _n: _metadata())
+    monkeypatch.setattr(_github, "fetch_languages", lambda _n: {})
+
+    def fake_clone(_url: str, target: Path, _t: float) -> None:
+        target.mkdir(parents=True, exist_ok=True)
+        (target / "marker").write_text("kept")
+
+    monkeypatch.setattr(_processor._git, "partial_clone", fake_clone)
+    monkeypatch.setattr(
+        _processor._git, "resolve_sha_before", lambda *a, **k: "abc1234"
+    )
+    monkeypatch.setattr(_processor._git, "checkout", lambda *a, **k: None)
+    monkeypatch.setattr(
+        _processor.analyzers, "detect_primary_language", lambda _d: "python"
+    )
+    monkeypatch.setattr(
+        _processor.analyzers, "run_all", lambda _d, _l: {"loc_total": 0}
+    )
+
+    _processor.process_one(_make_repo(), "worker-1-abcd")
+
+    clone_dir = tmp_path / "worker-1-abcd" / "1"
+    assert (clone_dir / "marker").exists()
+
+
+def test_cleanup_after_repo_true_removes_clone_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CLEANUP_AFTER_REPO=true (default) removes the clone tree after processing."""
+    _patch_scratch_dir(monkeypatch, tmp_path)
+    _stub_cas_set(monkeypatch)
+    _stub_mark_failed(monkeypatch)
+
+    monkeypatch.setattr(_github, "fetch_metadata", lambda _n: _metadata())
+    monkeypatch.setattr(_github, "fetch_languages", lambda _n: {})
+
+    def fake_clone(_url: str, target: Path, _t: float) -> None:
+        target.mkdir(parents=True, exist_ok=True)
+        (target / "marker").write_text("will-be-removed")
+
+    monkeypatch.setattr(_processor._git, "partial_clone", fake_clone)
+    monkeypatch.setattr(
+        _processor._git, "resolve_sha_before", lambda *a, **k: "abc1234"
+    )
+    monkeypatch.setattr(_processor._git, "checkout", lambda *a, **k: None)
+    monkeypatch.setattr(
+        _processor.analyzers, "detect_primary_language", lambda _d: "python"
+    )
+    monkeypatch.setattr(
+        _processor.analyzers, "run_all", lambda _d, _l: {"loc_total": 0}
+    )
+
+    _processor.process_one(_make_repo(), "worker-1-abcd")
+
+    clone_dir = tmp_path / "worker-1-abcd" / "1"
+    assert not clone_dir.exists()
+
+
 def test_unexpected_exception_classified_as_typename(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

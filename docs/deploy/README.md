@@ -12,3 +12,9 @@ three faculty worker hosts:
 See [`docs/DEPLOYMENT.md`](../DEPLOYMENT.md) for the full operator runbook
 (first-time setup, rollout, monitoring queries, shutdown, troubleshooting,
 reproducibility).
+
+## Local variant (MacBook Pro M1 Max)
+
+[`local/`](local/) carries a single-worker Compose tuned for a MacBook Pro
+(M1 Max) running against the host's native MongoDB. Useful when the faculty
+private network is unreachable. See [`local/README.md`](local/README.md).

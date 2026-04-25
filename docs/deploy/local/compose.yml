@@ -1,0 +1,42 @@
+# IP-010 addendum: local worker deployment for MacBook Pro (M1 Max).
+#
+# Single worker container against the operator's native MongoDB on the host
+# (port 27017). Intended for local runs while the faculty private network
+# is unreachable. Pairs with `docs/deploy/local/.env.example`.
+#
+# Key differences from `docs/deploy/compose.yml` (faculty production):
+#   - `image: oss-profanity:local-m1` built from the repo `Dockerfile`
+#     (no GHCR pull). Switch to `ghcr.io/sibyx/oss-profanity:master` +
+#     `pull_policy: always` if you'd rather match production bits.
+#   - Mongo reached via `host.docker.internal:27017` (Docker Desktop on
+#     macOS exposes the host this way).
+#   - `CLEANUP_AFTER_REPO=true` so the laptop SSD doesn't accumulate
+#     half-cloned repos between analyses.
+#   - Sensible concurrency for 10-core M1 Max: 6 workers (8 performance
+#     cores, 2 held back for OS + Mongo + browser).
+#
+# Run from this directory so `env_file: .env` resolves:
+#   cd docs/deploy/local
+#   cp .env.example .env && $EDITOR .env && chmod 600 .env
+#   docker compose build
+#   docker compose up
+#
+# `build: .` in compose points at the repo root via the build-context
+# variable so a single image tag is produced locally without copying the
+# Dockerfile around.
+
+services:
+  worker:
+    image: oss-profanity:local-m1
+    build:
+      context: ../../..
+      dockerfile: Dockerfile
+    restart: on-failure
+    env_file: .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - scratch:/scratch
+
+volumes:
+  scratch:

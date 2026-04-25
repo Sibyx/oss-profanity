@@ -2,17 +2,15 @@
 theme: seriph
 layout: cover
 background: '#fff'
-title: "Application Aspects in Database Systems"
+title: "Vulgarizmy, otvorený kód a jeho kvalita"
 info: |
-  DBS Course — FIIT STU 2026
-  Application Aspects in Database Systems
-
-  ORM patterns, schema migrations, the deployment ladder from laptop to SaaS,
-  database operations, and security.
+  OpenCamp Bratislava 2026 — Jakub Dubec (FIIT STU)
+  A serious answer to a silly question.
 author: Jakub Dubec
+lang: en-US
 transition: slide-left
 mdc: true
-lineNumbers: true
+lineNumbers: false
 colorSchema: light
 fonts:
   sans: Open Sans
@@ -21,10 +19,14 @@ drawings:
   persist: false
 ---
 
-# Application Aspects in Database Systems
+# Vulgarizmy, otvorený kód a jeho kvalita
 
-<div class="mt-2 text-lg opacity-80">
-  Database Systems — FIIT STU
+<div class="mt-4 text-xl opacity-80">
+  Profanity, open-source code, and its quality
+</div>
+
+<div class="mt-2 text-base opacity-60">
+  A serious answer to a silly question
 </div>
 
 <div class="abs-bl m-8">
@@ -32,2165 +34,1902 @@ drawings:
 </div>
 
 <div class="abs-br m-8 text-sm opacity-40">
-  Jakub Dubec · 2026
+  Jakub Dubec · OpenCamp · 2026-04-25
 </div>
 
 <!--
-Welcome to the Application Aspects lecture. This year we assume this is your
-FIRST lecture meeting Object-Relational Mapping (ORM) — so we will build the
-vocabulary from scratch. But we will not stop there: we will also climb the
-deployment ladder from `psql` on your laptop all the way to managed SaaS
-PostgreSQL, name the patterns that keep production databases alive, and end
-with live SQL injection in the browser. By the end you should have both the
-conceptual vocabulary AND the operational intuition to build a database-backed
-application that survives contact with real users.
+Hello. This talk is 60 minutes about a question that sounds like a joke
+but turned into 3 months of rigorous software: do programmers who swear
+write better code? I'll tell you what I built, what I found, and what
+I did not find yet. Pragmatic, academic, occasionally funny. Let's go.
+-->
+
+---
+
+# The stereotype
+
+> **"NVIDIA, fuck you!"**
+>
+> — Linus Torvalds, LKML, 17 June 2012
+
+<v-click>
+
+Linus on the kernel mailing list, middle finger on camera, rejecting
+NVIDIA's out-of-tree driver approach. Public record. Now a meme.
+
+</v-click>
+
+<v-click>
+
+Programmers have opinions. They put them in writing. Sometimes in
+`git commit -m`.
+
+</v-click>
+
+<!--
+The Linus moment is the canonical public artifact of the
+"programmers-who-swear" stereotype. It's real, it's citable, it's the
+anchor for the rest of the talk. We're not debating whether programmers
+swear — they do. The question is whether it correlates with anything
+measurable.
+-->
+
+---
+
+# The 2015 internet moment
+
+Remember this one?
+
+<v-clicks>
+
+- Reddit / HackerNoon thread, circa 2015
+- One developer ran a script over a tiny sample
+- Concluded: "code with profanity has fewer bugs"
+- 40 000 upvotes. Zero methodology. One chart.
+- Became internet folklore.
+
+</v-clicks>
+
+<v-click>
+
+> So: is it **true**? Nobody ever went back and checked properly.
+
+</v-click>
+
+<!--
+Most people in this room remember the post. It's fun folklore, but as
+research it was one person grepping their own projects. No matched
+cohorts, no statistical test, no hypothesis registration. If that HN
+thread were a research paper, no reviewer would send it back for
+revisions — they'd reject it outright. So: let's actually do the work.
 -->
 
 ---
 layout: center
 ---
 
-# "I want to save a `User` to the database." 💾
+# The question
+
+<div class="text-3xl font-semibold mt-8 leading-snug">
+Is there a statistically significant correlation between
+<span style="color: #00A9E0">profanity</span> in commits / code and
+<span style="color: #00A9E0">measurable code quality</span>?
+</div>
+
+<!--
+Big type, single beat. This is the research question. Not "do
+programmers swear" (trivially yes) and not "does swearing make better
+programmers" (untestable without a mind-reading experiment). The
+question that CAN be answered: is there a statistical relationship
+between a text-level signal (profanity frequency) and a tool-level
+signal (ruff/eslint/lizard quality metrics)?
+-->
+
+---
+layout: center
+---
+
+# The answer
+
+<div class="text-3xl font-semibold mt-8">
+I don't know yet.
+</div>
 
 <v-click>
 
-What does the system actually do between `user.save()` and the row hitting disk?
+<div class="text-xl mt-6 opacity-80">
+But I built a pipeline that <strong>will</strong>.
+</div>
 
 </v-click>
 
 <v-click>
 
-And once it *does* hit disk — **who keeps that disk alive at 3 a.m.?**
+<div class="mt-8 text-base opacity-60">
+And that pipeline is the interesting part.
+</div>
 
 </v-click>
 
 <!--
-Our guiding question for the whole lecture. A single line of code triggers a
-surprising amount of machinery: mapping, tracking, transactions, connection
-handling, escaping, failover, backups. We'll pull the covers back on all of it.
-The second beat ("who keeps it alive at 3 a.m.") is the *application aspects*
-framing — this is not a database-internals lecture, it's a lecture about living
-with a database in production.
+Own the joke upfront. The audience came for a punchline; they're
+getting methodology. If I pretend to have the p-value already, some
+grad student will corner me at the coffee break and catch me out. So:
+be honest, be self-aware, move on. The rest of the talk is the build,
+the measurement, the descriptive stats, and the epistemics.
 -->
 
 ---
 
-# Today's Agenda
+# Today's agenda
 
 <v-clicks>
 
-1. **What is an ORM?** — from SQL to objects in four layers
-2. **ORM Design Patterns** — Active Record, Data Mapper, and friends
-3. **Schema Migrations** — version control for your database
-4. **The Deployment Ladder** — laptop → Docker → Kubernetes → SaaS
-5. **Operations** — pooling, observability, backups
-6. **Security** — injection (live!), secrets, TLS, row-level security
-7. **Practical Examples** — Django · SQLAlchemy · Hibernate
-8. **Quizzes & Further Reading**
+1. **Prior art** — what has been studied, what hasn't
+2. **Methodology** — the four-stage pipeline, in detail
+3. **Tech stack** — how it's built, what's boring, what's clever
+4. **Results so far** — the descriptive stats from 3.7 million repos
+5. **AI & the future** — what Copilot might do to commit messages
+6. **Q & A** — and the reading list
 
 </v-clicks>
 
 <!--
-Nine beats in ~90 minutes. We build the story in layers: what an ORM is, what
-it's made of, how the schema evolves, where it runs, how it stays alive, how
-it stays safe. Practical code examples tie the abstract back to real frameworks
-at the end. Each section loops back to the guiding question from a new angle.
+Seven acts total if you count the title; six after the hook. Pacing:
+methodology and results each get 15 minutes; the AI act is a short
+5-minute speculation; Q&A closes. Watch the clock on methodology — it's
+the dense one.
 -->
 
 ---
 layout: section
 ---
 
-# What is an ORM?
+# Prior art
 
-*Four layers between you and the database*
+*The research gap this talk lives in*
 
 ---
 
-# The Object / Relational Impedance Mismatch
+# What has been studied
+
+<v-clicks>
+
+- **Guzman & Azócar (MSR 2014)** — commit-message sentiment analysis
+- **Miller et al. (ICSE 2022)** — toxicity in OSS communication
+- Various — profanity in chat, issues, code review
+- **GitHub's own data science posts** — top emoji, top repos
+- Sadly-many — "top 10 worst commit messages" blog posts
+
+</v-clicks>
+
+<!--
+There's real work on sentiment and toxicity in OSS. Guzman/Azócar's
+paper is the methodological grandparent of what I'm doing — they
+mined GitHub commit messages for sentiment. Miller et al. 2022 looked
+at toxicity specifically. Neither asked "does this correlate with code
+quality metrics at scale?" That's the gap.
+-->
+
+---
+
+# What has NOT been studied rigorously
+
+<v-clicks>
+
+- Profanity vs. **code-quality metrics** at scale
+- **Matched cohorts** — profane vs. clean, same commit activity
+- **Multiple quality dimensions** — ruff, eslint, lizard, jscpd
+- **AST-level** signal — profanity in *identifiers*, not just messages
+- **Reproducible pipeline** — someone else can re-run my numbers
+
+</v-clicks>
+
+<v-click>
+
+> The gap isn't "nobody thought of it." It's "nobody did it properly."
+
+</v-click>
+
+<!--
+The list is short, specific, and falsifiable. If anyone knows a paper
+that does this rigorously — please tell me at the break. I'll gladly
+cite it. The closest approaches I found either hit one quality metric
+or use an un-matched cohort. The matched-cohort + multi-metric +
+reproducible combo is where this work sits.
+-->
+
+---
+
+# The hypothesis
 
 <div class="grid grid-cols-2 gap-6 mt-6">
 <div>
 
-**An object has…**
+**H₀** — *null*
 
-- Identity (a reference)
-- State (fields)
-- Behaviour (methods)
-- References to other objects
-- Inheritance, polymorphism
-
-```python
-class User:
-    id: int
-    name: str
-    friends: list["User"]
-    def greet(self): ...
-```
+No difference in `code_analysis` distributions between the
+profane cohort and the clean cohort.
 
 </div>
+
 <div>
 
-**A row has…**
+**H₁** — *alternative*
 
-- A primary key
-- Typed columns
-- No behaviour
-- Foreign keys (not references)
-- No inheritance
-
-```sql
-CREATE TABLE users (
-  id   INTEGER PRIMARY KEY,
-  name TEXT NOT NULL
-);
-CREATE TABLE friendships (
-  user_id   INTEGER REFERENCES users,
-  friend_id INTEGER REFERENCES users
-);
-```
+A difference exists, in at least one quality dimension.
 
 </div>
 </div>
 
 <v-click>
 
-> The two halves don't line up. **Something** has to translate between them. That something is the ORM.
+<div class="mt-6">
 
-</v-click>
-
-<!--
-Coin the phrase "object/relational impedance mismatch" here — students will
-hear it the rest of their careers. Ted Neward's 2006 essay "The Vietnam of
-Computer Science" is the classic rant on it; not on slide, just in notes.
-The asymmetry matters: objects are graphs, rows are tuples. ORMs bridge.
--->
-
----
-
-# Four Ways to Talk to a Database
-
-Four distinct **layers** of abstraction — each adds ergonomics and hides more SQL than the one below it.
-
-<div class="grid grid-cols-2 gap-4 mt-4 text-sm">
-
-<div class="p-3 border-l-4 border-gray-400 bg-gray-50 rounded">
-<div class="font-semibold">1 · Raw driver</div>
-<div class="opacity-70 text-xs mt-1">psycopg · pg · JDBC</div>
-<div class="mt-2">You write SQL strings, you manage the cursor, you live with it.</div>
-</div>
-
-<div class="p-3 border-l-4 border-blue-400 bg-blue-50 rounded">
-<div class="font-semibold">2 · Query builder</div>
-<div class="opacity-70 text-xs mt-1">Knex · jOOQ · SQLAlchemy Core</div>
-<div class="mt-2">Programmatic SQL — <code>.select().from().where()</code>. Still no objects.</div>
-</div>
-
-<div class="p-3 border-l-4 border-indigo-400 bg-indigo-50 rounded">
-<div class="font-semibold">3 · Micro-ORM</div>
-<div class="opacity-70 text-xs mt-1">Dapper · asyncpg helpers</div>
-<div class="mt-2">Row → object mapping, minimal magic. You still write SQL.</div>
-</div>
-
-<div class="p-3 border-l-4 border-sky-500 bg-sky-50 rounded">
-<div class="font-semibold">4 · Full ORM</div>
-<div class="opacity-70 text-xs mt-1">Django · Hibernate · SQLAlchemy</div>
-<div class="mt-2">Objects, relationships, lazy loading, migrations, the lot.</div>
-</div>
+Test: **Mann-Whitney U**, two-sided. Non-parametric — we don't assume
+the `ruff_issues_per_kloc` distribution is normal (it isn't).
 
 </div>
 
-<v-click>
-
-> Climbing up: **less SQL in your code**, more abstraction, more learning curve. Each layer trades control for ergonomics.
-
-</v-click>
-
-<!--
-Most of the industry lives at layers 1 or 4, with growing interest in 2 and 3.
-The point is not "ORMs are better than drivers" — it's that these are distinct
-tools for distinct jobs. A scripting pipeline often wants a raw driver. A
-typical web app usually wants a full ORM. Neither is wrong; pick the layer.
--->
-
----
-
-# What a Full ORM Gives You
-
-<v-clicks>
-
-- **Mapping** — tables ↔ classes, rows ↔ instances, columns ↔ fields
-- **Query DSL** — write filters in your language, not in SQL strings
-- **Relationships** — `post.author` returns the `User` object, not an ID
-- **Parameterisation by default** — SQL injection protection for free
-- **Schema migrations** — versioned `ALTER TABLE` as part of your code
-- **Transactions & identity** — the same row → the same object in a session
-- **Lazy & eager loading** — tune what's fetched without rewriting queries
-
-</v-clicks>
-
-<v-click>
-
-> An ORM is not magic. It is **a stack of well-named patterns** layered on top of the driver. We will name every one of those patterns next.
-
-</v-click>
-
-<!--
-This is the "why bother" slide. Each bullet is something you'd have to write
-by hand if you used the raw driver. None of them are rocket science — but all
-of them are error-prone and boring. ORMs automate the boring bits so you have
-budget left for the interesting bits (schema design, query planning, ops).
--->
-
----
-
-# What a Full ORM Does NOT Give You
-
-<v-clicks>
-
-- 🧠 **Schema design** — normalisation, keys, constraints — still on you
-- 📈 **Query-plan intuition** — the ORM emits SQL; the *plan* is PostgreSQL's problem
-- 🔍 **Performance** — N+1 queries will still hurt until you see them
-- ⚖️ **Correctness under load** — isolation levels, locking, deadlocks
-- 🔐 **Access control** — which user can touch which rows
-- 🧹 **Operational hygiene** — pooling, backups, monitoring — all still on you
-
-</v-clicks>
-
-<v-click>
-
-> The ORM is a **layer**, not a wall. When the app gets slow or wrong, you will have to look *through* it. Plan for that.
-
-</v-click>
-
-<!--
-Equally important. Students sometimes leave their first ORM lecture thinking
-"I never have to write SQL again" — which is only true until production. The
-ORM hides complexity; it does not remove it. This slide sets up the whole
-rest of the lecture: everything we cover after patterns is stuff the ORM
-*doesn't* do for you.
--->
-
----
-
-<div class="pg-trivia">
-  <div class="pg-trivia-title">🐘 Postgres trivia · MVCC</div>
-  <div class="pg-trivia-body">
-    An <code>UPDATE</code> in PostgreSQL never overwrites a row in place. It writes a
-    <em>new</em> tuple and marks the old one dead. <code>VACUUM</code> is what eventually reclaims
-    the dead ones. This is <strong>Multi-Version Concurrency Control (MVCC)</strong> — the reason
-    readers don't block writers and writers don't block readers. It's a design choice from the original
-    POSTGRES paper (Stonebraker &amp; Rowe, 1986) that 40 years later is still a competitive advantage.
-  </div>
-</div>
-
-<v-click>
-
-<div class="cool-tip">
-  <div class="cool-tip-title">💡 Cool tip · use <code>RETURNING</code></div>
-  PostgreSQL lets <code>INSERT</code> / <code>UPDATE</code> / <code>DELETE</code> return rows in one round-trip:
-  <code>INSERT INTO users (name) VALUES ('Alice') RETURNING id, created_at;</code> — no follow-up <code>SELECT</code> needed.
-</div>
-
-</v-click>
-
-<!--
-Keep the first trivia lightweight. The cool-tip pattern introduces the
-yellow callout we'll reuse. RETURNING is a quiet superpower — it saves one
-round-trip per write, which matters at 3000 QPS. Most ORMs expose it via
-.returning() or similar; learn your ORM's idiom.
--->
-
----
-layout: section
----
-
-# ORM Design Patterns
-
-*The patterns your ORM is made of*
-
----
-
-# Active Record Pattern
-
-> A database table is wrapped by a class; each **instance is a row**.
-
-<v-clicks>
-
-- Properties map to columns
-- Methods like `save()`, `update()`, `delete()` encapsulate SQL
-- **Examples**: Rails ActiveRecord, Laravel Eloquent, Django ORM
-- ✅ Simple, fast to build CRUD, easy to teach
-- ☠️ Leads to "fat models"; the domain object is tightly bound to the schema
-
-</v-clicks>
-
-<!--
-Named by Martin Fowler in *Patterns of Enterprise Application Architecture*
-(2003). Each object = one row, plus CRUD methods. The appeal is no SQL to
-write. The trap is that once business logic grows, the model class becomes
-a god object that knows about HTTP, email, billing, AND the database.
--->
-
----
-
-# Active Record Example (Django)
-
-```python
-from django.db import models
-
-class Post(models.Model):
-    title = models.CharField(max_length=100)
-    content = models.TextField()
-    published_at = models.DateTimeField(auto_now_add=True)
-
-# Using the model
-post = Post(title="Hello", content="First post")
-post.save()                                     # INSERT INTO app_post ...
-post.title = "Hello!"
-post.save()                                     # UPDATE app_post SET ... WHERE id = ...
-
-Post.objects.filter(title__icontains="hello")   # SELECT ... WHERE title ILIKE '%hello%'
-```
-
-<v-click>
-
-The `Post` class **is** the query interface **and** the row. That's the pattern in one sentence.
-
-</v-click>
-
-<!--
-Point at every line and name the SQL it becomes. The "icontains" lookup is a
-good place to mention that Django writes the LIKE pattern for you AND
-parameterises the value — no manual escaping, no injection risk. The INSERT
-vs UPDATE dispatch happens based on whether the instance has a primary key.
--->
-
----
-
-# Data Mapper Pattern
-
-> A separate **mapper** layer transfers data between objects and the database.
-
-<v-clicks>
-
-- Domain objects contain behaviour but **no persistence code**
-- A mapper / repository / session does the SQL
-- **Examples**: Hibernate (Java), SQLAlchemy (Python), Doctrine (PHP)
-- ✅ Clean separation of concerns, easy to test in isolation, handles complex mappings
-- ☠️ More moving parts, more configuration, harder to debug first time
-
-</v-clicks>
-
-<v-click>
-
-> Active Record says *"the object knows how to save itself."* Data Mapper says *"somebody else knows how to save this object."* That one sentence is the entire difference.
-
-</v-click>
-
-<!--
-The core philosophical difference. Data Mapper is what you want when your
-domain has real behaviour — invariants, workflows, state machines — that
-shouldn't know or care about rows. Active Record is what you want when CRUD
-is 90% of your use case.
--->
-
----
-
-# Data Mapper Example (SQLAlchemy)
-
-````md magic-move
-```python
-# 1) Declare the mapping — no persistence methods on the class
-from sqlalchemy.orm import declarative_base
-from sqlalchemy import Column, Integer, String
-
-Base = declarative_base()
-
-class Product(Base):
-    __tablename__ = 'products'
-    id    = Column(Integer, primary_key=True)
-    name  = Column(String)
-    price = Column(Integer)
-```
-
-```python
-# 2) Work through a Session — the mapper
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
-engine  = create_engine("postgresql://user:pass@localhost:5432/mydb")
-Session = sessionmaker(bind=engine)
-session = Session()
-
-prod = Product(name="Widget", price=100)
-session.add(prod)        # "track this as new"
-session.commit()         # now the INSERT actually happens
-
-widgets = session.query(Product).filter_by(name="Widget").all()
-```
-````
-
-<!--
-Notice Product has no save() or delete() method — the mapping class is data
-plus metadata, nothing else. The Session plays three roles at once: Data Mapper
-(it translates), Identity Map (it dedupes), and Unit of Work (it batches). We'll
-name each of those explicitly in a moment.
--->
-
----
-
-# Repository Pattern
-
-> A **collection-like** interface for domain objects. Hides the mapper behind one cohesive API per aggregate.
-
-<v-clicks>
-
-- Looks like an in-memory `Set<User>` to the caller — `.add()`, `.remove()`, `.findById()`, `.findByEmail()`
-- Internally delegates to a Data Mapper / Session / ORM query
-- **Examples**: Spring Data `CrudRepository`, .NET EF `DbSet`, MikroORM `EntityRepository`
-- ✅ Domain code never imports `Session` / `EntityManager` directly — testable, mockable
-- ☠️ Easy to pile up custom finder methods until it's a god object again
-
-</v-clicks>
-
-<v-click>
-
-> Data Mapper says *"somebody else saves this."* Repository says *"somebody else also **finds** it for me, and looks like a plain collection while doing so."*
-
-</v-click>
-
-<!--
-Repository was named by Evans in Domain-Driven Design (2003) and refined by
-Fowler in PEAA. The key move beyond Data Mapper is that the Repository is
-*per-aggregate*, not per-table, and its interface is collection-shaped rather
-than CRUD-shaped. In practice, a well-designed Repository reads like domain
-language: `orders.placedBy(customer)`, not `orderMapper.findByCustomerId(id)`.
--->
-
----
-
-# Repository Example (Python)
-
-```python
-class UserRepository:
-    def __init__(self, session):
-        self._session = session
-
-    # Collection-shaped API — hides SQLAlchemy behind domain verbs
-    def add(self, user: User) -> None:
-        self._session.add(user)
-
-    def get(self, user_id: int) -> User | None:
-        return self._session.get(User, user_id)
-
-    def find_by_email(self, email: str) -> User | None:
-        return self._session.query(User).filter_by(email=email).one_or_none()
-
-    def active_since(self, cutoff: date) -> list[User]:
-        return (self._session.query(User)
-                             .filter(User.last_seen >= cutoff)
-                             .all())
-```
-
-<v-click>
-
-Business logic now depends on `UserRepository` — **not** on `Session`, not on SQL, not on SQLAlchemy at all.
-
-</v-click>
-
-<!--
-This is the level at which Domain-Driven Design operates. The Repository is
-where the infrastructure-layer abstraction stops leaking into the domain
-layer. Swap SQLAlchemy for Mongo? You reimplement UserRepository; domain
-code is untouched. Mock UserRepository in tests? One-line subclass with an
-in-memory list.
--->
-
----
-
-# Active Record vs. Data Mapper vs. Repository
-
-| Aspect       | **Active Record**                   | **Data Mapper**                            | **Repository**                                |
-|--------------|-------------------------------------|--------------------------------------------|-----------------------------------------------|
-| Shape        | Row = object with CRUD methods      | Session + bare domain object               | Collection-like facade over the mapper        |
-| Coupling     | Strong — object ↔ table             | Weak — domain object doesn't know about DB | Weakest — domain doesn't know about mapper    |
-| Complexity   | Low                                 | Medium                                     | Medium + one interface per aggregate          |
-| Best fit     | CRUD apps, admin panels, prototypes | Complex domains, DDD                       | DDD, hexagonal architecture, testable domains |
-| Typical ORMs | Django, Rails AR, Eloquent          | Hibernate, SQLAlchemy, Doctrine            | Spring Data, EF Core, MikroORM                |
-
-<v-click>
-
-> Django *feels* like Active Record, but `QuerySet` quietly behaves like a Data Mapper layer. Real ORMs are almost always **hybrids** — labels help, but don't believe them too hard.
-
-</v-click>
-
-<!--
-The hybrid point matters. Students sometimes try to classify every ORM into
-one bucket. Most modern ORMs cherry-pick features from both camps. What
-matters is recognising which pattern is in play *in a given operation*, not
-what label the library wears on the tin.
--->
-
----
-
-# Table Data Gateway
-
-> One class per table. All SQL for that table lives inside it.
-
-<v-clicks>
-
-- Methods like `find_all()`, `find_by_id()`, `insert()`, `update()`, `delete()`
-- Still close to SQL — no automatic mapping to rich domain objects
-- Common in "DAO layer" code, especially pre-ORM Java/PHP
-- ✅ Keeps SQL out of the domain; clear single responsibility
-- ☠️ Lots of nearly-identical code, one boilerplate class per table
-
-</v-clicks>
-
-```python
-class UsersGateway:
-    def find_by_email(self, email):
-        self.cur.execute("SELECT id, name FROM users WHERE email = %s", (email,))
-        return self.cur.fetchone()
-
-    def insert_user(self, name, email):
-        self.cur.execute(
-            "INSERT INTO users (name, email) VALUES (%s, %s) RETURNING id",
-            (name, email),
-        )
-        return self.cur.fetchone()[0]
-```
-
-<!--
-Historically a stepping stone towards ORMs. If you're not ready for a full
-ORM, this is a perfectly respectable layer — and it's roughly what ORMs
-generate internally. Note the `%s` placeholders: gateways protect you from
-injection too, simply because writing parameterised queries is the idiom.
--->
-
----
-
-# Row Data Gateway
-
-> One class per **row** — "Active Record Lite".
-
-<v-clicks>
-
-- Fields map to columns; methods like `update()`, `delete()` act on *this one row*
-- No domain logic — just row-shaped data with SQL attached
-- Often lives inside a Table Data Gateway implementation
-- ✅ Convenient when you want row-level helpers without a full ORM
-- ☠️ Without an Identity Map, you can end up with **two objects for the same row**
-
-</v-clicks>
-
-<v-click>
-
-> Modern ORMs have mostly eaten this pattern. You'll see it in *legacy* code or the guts of a hand-rolled persistence layer.
-
-</v-click>
-
-<!--
-The distinction from Active Record is subtle and mostly historical. Worth
-naming so students recognise it in Fowler's PEAA, but in 2026 you'll rarely
-implement it deliberately. The "two objects for one row" failure mode
-motivates the Identity Map pattern a few slides later.
--->
-
----
-
-# Lazy Loading
-
-> Don't fetch it until somebody touches it.
-
-<v-clicks>
-
-- Related objects return as **proxies** that trigger a query on first access
-- Saves memory and bandwidth when the related data isn't used
-- ☠️ Creates the **N+1 query problem** in loops
-- Opt into **eager loading** (`select_related`, `prefetch_related`, `JOIN FETCH`) when you know you'll need the data
-
-</v-clicks>
-
-<!--
-Lazy loading is the single biggest cause of "it was fast on my laptop, dies in
-production" performance stories. Teach the ORM toggle for the language you're
-teaching; the vocabulary differs per framework but the mechanism is identical.
--->
-
----
-
-# Lazy Loading — Sequence
-
-<div class="diagram-fit">
-
-```mermaid {scale: 0.7}
-sequenceDiagram
-    participant App as Application
-    participant ORM as ORM / Session
-    participant DB as Database
-
-    App->>ORM: load Post #42
-    ORM->>DB: SELECT * FROM posts WHERE id = 42
-    DB-->>ORM: row
-    ORM-->>App: Post object (comments = <proxy>)
-
-    Note over ORM: comments not loaded yet
-
-    App->>ORM: read post.comments
-    ORM->>DB: SELECT * FROM comments WHERE post_id = 42
-    DB-->>ORM: rows
-    ORM-->>App: real [Comment, Comment, ...]
-```
-
-</div>
-
-<!--
-Walk through the numbers. Loading 100 posts and reading .comments on each in
-a loop is 1 + 100 queries. With prefetch_related / JOIN FETCH it becomes 2.
-Two orders of magnitude of latency hidden behind an attribute access.
--->
-
----
-
-# Identity Map
-
-> Each row has **exactly one** in-memory object within a session.
-
-<v-clicks>
-
-- Fetching `User(id=42)` twice returns the **same Python/Java object**, not two copies
-- Second lookup is a cache hit — **no SQL**
-- Prevents the "two objects, one row, divergent state" bug
-- Scoped to a **session / unit of work** — typically one request in a web app
-
-</v-clicks>
-
-<v-click>
-
-> This is why SQLAlchemy or Hibernate sometimes "skip" a query you expected — it's not broken, it's the identity map doing its job.
-
-</v-click>
-
-<!--
-The quiet pattern that prevents a whole class of bugs. Without it, two parts
-of your code can each edit "the same" user and only one set of changes
-sticks. With it, both are mutating the same object and the last commit wins
-cleanly. The scope is the session — usually one HTTP request.
--->
-
----
-
-# Identity Map — Sequence
-
-<div class="diagram-fit">
-
-```mermaid {scale: 0.7}
-sequenceDiagram
-    participant App as Application
-    participant S as Session + Identity Map
-    participant DB as Database
-
-    App->>S: getUser(id = 42)
-    S->>DB: SELECT * FROM users WHERE id = 42
-    DB-->>S: row
-    Note over S: cache User#42
-    S-->>App: User#42
-
-    App->>S: getUser(id = 42)  (again)
-    Note right of S: cache hit — no SQL
-    S-->>App: same User#42 instance
-```
-
-</div>
-
-<!--
-Emphasise "same instance", not "equal value". If the app mutated the first
-object, the second lookup returns it with those mutations already in place —
-because there is only one object.
--->
-
----
-
-# Unit of Work
-
-> Track every change in memory; flush them **all at once** in a single transaction.
-
-<v-clicks>
-
-- Object states: **New**, **Dirty**, **Clean**, **Deleted**
-- On commit, the UoW emits `INSERT` / `UPDATE` / `DELETE` in a sensible order
-- **Atomicity** — all succeed or all roll back
-- **Batching** — fewer round-trips than writing per-object
-- Lives inside the session / entity manager
-
-</v-clicks>
-
-<!--
-This is why you can call session.add(...) ten times and see no SQL until
-commit. The Unit of Work is the reason ORMs feel lazy about writes — and
-it's why they can be atomic without you managing transactions explicitly.
--->
-
----
-
-# Unit of Work — Sequence
-
-<div class="diagram-fit">
-
-```mermaid {scale: 0.7}
-sequenceDiagram
-    participant App as Application
-    participant UoW as Unit of Work
-    participant DB as Database
-
-    App->>UoW: begin
-    App->>UoW: create A       (New)
-    App->>UoW: modify B       (Dirty)
-    App->>UoW: delete C       (Deleted)
-    App->>UoW: commit
-
-    UoW->>DB: BEGIN
-    UoW->>DB: INSERT A
-    UoW->>DB: UPDATE B
-    UoW->>DB: DELETE C
-    UoW->>DB: COMMIT
-    UoW-->>App: ok (or ROLLBACK on failure)
-```
-
-</div>
-
-<!--
-If any single statement fails, the ROLLBACK wipes the rest. Atomicity for
-free, as long as you respect the session boundary. This pattern is what makes
-"save the order with all its line items" feel like one operation.
--->
-
----
-
-# The ORM-Pattern Landscape
-
-| Pattern             | What it solves                       | Where you meet it                   |
-|---------------------|--------------------------------------|-------------------------------------|
-| Active Record       | Wiring a row to an object, fast      | Django models, Rails AR, Eloquent   |
-| Data Mapper         | Isolating domain from persistence    | Hibernate entities, SQLA `Session`  |
-| Repository          | Collection-shaped domain API         | Spring Data, EF Core, MikroORM      |
-| Table Data Gateway  | Centralising a table's SQL           | DAOs, PHP persistence classes       |
-| Row Data Gateway    | Row-level helpers without a full ORM | Legacy code, hand-rolled layers     |
-| Lazy Loading        | Don't fetch what isn't used          | `fetch = LAZY`, `select_related`    |
-| Identity Map        | One object per row, per session      | SQLA `Session`, Hibernate cache     |
-| Unit of Work        | Batch changes, one transaction       | `session.commit()`, `em.flush()`    |
-
-<!--
-The "one slide to remember" table. Every one of these appears in the ORMs
-students will meet in industry. If they can point at an ORM behaviour and
-name the pattern, this section of the lecture has done its job.
--->
-
----
-layout: section
----
-
-# Schema Migrations
-
-*Versioning the database alongside the code*
-
----
-
-# Why Migrations?
-
-Your code evolves. Your **schema** has to evolve with it — in every environment.
-
-<v-clicks>
-
-- Add a column today, ship the feature tomorrow, onboard a teammate next week
-- Manual `ALTER TABLE` in production is how outages start
-- Migrations are **version control for your schema**: ordered, scripted, reversible
-
-</v-clicks>
-
-<v-click>
-
-> A migration is a **commit for your database**. If it's not in a migration, it didn't happen.
-
-</v-click>
-
-<!--
-Motivation is the same as version control for source code: reproducibility
-across environments and people. Treat migrations with the same respect: code
-review them, don't edit them after they've shipped, don't skip them.
--->
-
----
-
-# Migrations in Practice
-
-| Framework          | Tool                        | Style                                |
-|--------------------|-----------------------------|--------------------------------------|
-| Django             | built-in `makemigrations`   | Auto-generated from model diffs      |
-| Flask / SQLAlchemy | **Alembic**                 | Mostly manual, tracked with revisions|
-| Ruby on Rails      | ActiveRecord migrations     | Ruby DSL, auto-generators            |
-| Java / Hibernate   | **Flyway** or **Liquibase** | SQL or XML/YAML changesets           |
-| Node / TypeORM     | TypeORM migrations          | TS/JS classes, `up()` / `down()`     |
-
-<v-click>
-
-All share the same idea: an **ordered list of versioned scripts** and a table in the database that remembers which ones have been applied.
-
-</v-click>
-
-<!--
-Key insight: migrations are not a framework feature, they're a well-known
-pattern. Even if you use raw SQL, you can roll your own migration runner in
-a weekend — and sometimes you should.
--->
-
----
-
-# Django Migration Example
-
-```python
-# app/migrations/0003_add_age_to_user.py
-from django.db import migrations, models
-
-class Migration(migrations.Migration):
-    dependencies = [
-        ('app', '0002_previous_migration_name'),
-    ]
-    operations = [
-        migrations.AddField(
-            model_name='user',
-            name='age',
-            field=models.IntegerField(null=True),
-        ),
-    ]
-```
-
-<v-click>
-
-`python manage.py migrate` runs this file (and any others newer than the last applied). Django writes the `ALTER TABLE ... ADD COLUMN ...` for you and records `0003` as applied.
-
-</v-click>
-
-<!--
-The dependency line is what makes the DAG hold together. Never edit a
-migration after it's been applied in any environment — make a new one
-instead. This is the "don't rewrite history" rule of database version control.
--->
-
----
-
-# Zero-Downtime Migrations — Expand & Contract
-
-Adding a required column to a live table in **one** step breaks the running app:
-the old code doesn't know about it, the migration fails on existing rows.
-
-<v-clicks>
-
-The **expand / contract** pattern splits it in four:
-
-1. **Expand** — add the column as *nullable* (deploy 1: schema change)
-2. **Backfill** — write values to existing rows in batches
-3. **Dual-write** — new code writes the column; old code ignores it
-4. **Contract** — make the column `NOT NULL` and drop the old column (deploy 2)
-
-</v-clicks>
-
-<v-click>
-
-> Ship the schema change and the code that needs it in **separate deploys**. Your database should never need the app to be down to evolve.
-
-</v-click>
-
-<!--
-The canonical reference is Ambler & Sadalage's *Refactoring Databases* (2006).
-The one rule students should leave with: `ALTER TABLE ... SET NOT NULL` on a
-10-million-row table will take an `ACCESS EXCLUSIVE` lock. Schedule it
-accordingly or use `NOT VALID` + `VALIDATE CONSTRAINT` in PostgreSQL.
--->
-
----
-
-<div class="pg-trivia">
-  <div class="pg-trivia-title">🐘 Postgres trivia · TOAST</div>
-  <div class="pg-trivia-body">
-    <strong>T</strong>he <strong>O</strong>versized-<strong>A</strong>ttribute <strong>S</strong>torage <strong>T</strong>echnique.
-    PostgreSQL pages are 8 KB. When a <code>TEXT</code> or <code>JSONB</code> value doesn't fit, PostgreSQL silently
-    moves it into a side table and compresses it. Your heap stays small, sequential scans stay fast, and you don't
-    have to pick <code>VARCHAR(255)</code> defensively. Just use <code>TEXT</code>. PostgreSQL handles it.
-  </div>
-</div>
-
-<v-click>
-
-<div class="cool-tip">
-  <div class="cool-tip-title">💡 Cool tip · partial indexes</div>
-  Index only the rows you actually query:
-  <code>CREATE INDEX ON orders (created_at) WHERE status = 'pending';</code><br/>
-  The index is tiny, writes are cheap, and the planner uses it for matching queries.
-</div>
-
-</v-click>
-
-<!--
-TOAST is one of those features you only notice when it's absent — try storing
-a 10 MB JSON blob in MySQL with default InnoDB row format. Partial indexes are
-criminally underused; they pay for themselves the first time you need to find
-"open tickets" in a table that's 99% closed tickets.
--->
-
----
-layout: section
----
-
-# The Deployment Ladder
-
-*From your laptop to production, one rung at a time*
-
----
-
-# Four Rungs, One Database Engine
-
-A **rung** is one step on a ladder. We climb from "the database on my laptop" to "the database someone else runs for me" — the **engine** is the same PostgreSQL binary at every step; what changes is **who operates it**.
-
-<div class="mt-5 space-y-2 text-sm">
-
-<div class="flex items-center gap-4 p-3 border-l-4 border-sky-500 bg-sky-50 rounded">
-  <div class="font-mono font-semibold w-28 shrink-0">☁️ Rung 3</div>
-  <div class="flex-1"><strong>Managed SaaS</strong> — RDS / Cloud SQL / Neon / Supabase. Someone else carries the pager.</div>
-</div>
-
-<div class="flex items-center gap-4 p-3 border-l-4 border-indigo-500 bg-indigo-50 rounded">
-  <div class="font-mono font-semibold w-28 shrink-0">☸️ Rung 2</div>
-  <div class="flex-1"><strong>On-prem Kubernetes</strong> — CloudNativePG operator, or a classic VM + Patroni.</div>
-</div>
-
-<div class="flex items-center gap-4 p-3 border-l-4 border-blue-400 bg-blue-50 rounded">
-  <div class="font-mono font-semibold w-28 shrink-0">🐳 Rung 1</div>
-  <div class="flex-1"><strong>Docker Compose</strong> — local dev, CI, and "emulate prod on a laptop."</div>
-</div>
-
-<div class="flex items-center gap-4 p-3 border-l-4 border-gray-400 bg-gray-50 rounded">
-  <div class="font-mono font-semibold w-28 shrink-0">🧑‍💻 Rung 0</div>
-  <div class="flex-1"><strong><code>psql</code> on your laptop</strong> — zero abstraction, you are the DBA.</div>
-</div>
-
-</div>
-
-<v-click>
-
-> **Climb up**: less toil, more cost, more lock-in. **Climb down**: more control, more responsibility at 3 a.m. Pick the highest rung your compliance, cost, and sovereignty allow.
-
-</v-click>
-
-<!--
-The rung metaphor is deliberate: a ladder is vertical, rungs are ordered, and
-you can stand on any of them. Nobody climbs the whole thing — you pick a rung
-for the production workload and use Rung 0 and Rung 1 for dev. The engine
-being the same Postgres binary at every level is the unifying thread.
--->
-
-
-<!--
-Frame this as a ladder, not a hierarchy. Rung 3 is not "better than" Rung 0 —
-it's just "where you pay someone else to carry the pager." Reasonable teams
-live on different rungs depending on regulatory posture, budget, and scale.
--->
-
----
-
-# Rung 0 — `psql` on Your Laptop
-
-```bash
-brew install postgresql@17          # macOS
-sudo apt install postgresql-17      # Debian/Ubuntu
-
-createdb awesome_database
-psql awesome_database
-```
-
-<v-clicks>
-
-- Zero abstraction — you are the DBA
-- Perfect for scripting, learning, exploration
-- Painful when the project needs a different PostgreSQL version than your system
-- Doesn't survive a laptop wipe unless you remember to `pg_dump`
-
-</v-clicks>
-
-<v-click>
-
-> Every developer should be comfortable at Rung 0. You can't debug Rung 3 if you can't read `\d+` output.
-
-</v-click>
-
-<!--
-Don't skip this rung. Students who never touch raw psql end up unable to
-introspect their ORM-generated schemas. Teach the basics: \d, \d+, \l,
-\dt, \df, \c. They're the stethoscope of database work.
--->
-
----
-
-# Rung 1 — Docker Compose
-
-```yaml
-# docker-compose.yml
-services:
-  db:
-    image: postgres:17
-    container_name: myapp_db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: arthur
-      POSTGRES_PASSWORD: krikkit
-      POSTGRES_DB: awesome_database
-    volumes:
-      - db_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-volumes:
-  db_data:
-```
-
-<!--
-Compose resolves service names as hostnames on the internal network — that's
-why the app uses PGHOST=db. From the host machine you'd use localhost:5432
-instead, because of the ports map. The volume survives container restarts;
-remove it on purpose when you want a clean slate.
--->
-
----
-
-# Rung 1 — Why Docker for Dev
-
-<v-clicks>
-
-- **Reproducible** — everyone runs the same PostgreSQL 17
-- **Disposable** — `docker compose down -v` wipes it clean
-- **Parallel** — Postgres 14 for one project, 17 for another, no global conflict
-- **Closer to prod** — the same image runs in CI, staging, and (maybe) production
-- **Pairs with env vars** — the twelve-factor config story
-
-</v-clicks>
-
-<v-click>
-
-> Rung 1 is your **local development** rung. It is not — by itself — a production strategy.
-
-</v-click>
-
-<!--
-Docker Compose for the database is great for dev and CI. It's NOT a production
-strategy because it does not solve: backups, HA, rolling upgrades, TLS
-termination, connection pooling, or monitoring. People who ran a single
-container in prod "for years" are the same people who later say "we got
-lucky." Don't be that team.
--->
-
----
-
-# Rung 2 — On-Prem Kubernetes
-
-You run the nodes. Something has to turn "PostgreSQL" into a highly-available, self-healing Kubernetes workload.
-
-<v-clicks>
-
-- **CloudNativePG** (CNPG) — the de-facto open-source operator, CNCF sandbox
-- A `Cluster` CRD declares: "3 replicas of Postgres 17, 100 GB, backups to S3"
-- Operator handles failover, rolling upgrades, backups, monitoring integration
-- Alternatives: **Zalando Postgres Operator**, **Crunchy PGO**
-- **Legacy bridge: Patroni + streaming replication** on VMs is still widespread
-  — DCS-based leader election, same concepts CNPG hides behind the CRD
-
-</v-clicks>
-
-<!--
-Explain Patroni even though it's a single bullet: Patroni is a Python HA
-template that runs as a sidecar on each Postgres node, uses a Distributed
-Configuration Store (etcd, Consul, Kubernetes) to coordinate leader election.
-Exactly one node at a time holds the leader lock; others stream-replicate
-from it. On lease expiry, a follower promotes itself and updates routing
-(HAProxy / PgBouncer / virtual IP). The "magic" is just streaming replication
-+ a lease with a TTL + a supervisor watching both. CloudNativePG replaces
-this with K8s primitives: the CRD is the lease, the StatefulSet is the nodes,
-the operator is Patroni. Naming Patroni bridges the "VMs + scripts" era that
-internships still use and the operator era everything else covers.
--->
-
----
-
-# Rung 2 — CloudNativePG Cluster
-
-```yaml
-apiVersion: postgresql.cnpg.io/v1
-kind: Cluster
-metadata:
-  name: awesome-cluster
-spec:
-  instances: 3
-  postgresql:
-    parameters:
-      shared_buffers: 256MB
-      max_connections: "200"
-  storage:
-    size: 100Gi
-    storageClass: fast-ssd
-  backup:
-    barmanObjectStore:
-      destinationPath: s3://backups/awesome
-      s3Credentials:
-        accessKeyId: { name: s3-creds, key: ACCESS_KEY_ID }
-        secretAccessKey: { name: s3-creds, key: SECRET_ACCESS_KEY }
-    retentionPolicy: "30d"
-```
-
-<!--
-One YAML, three replicas, automatic failover, continuous backups to S3, 30-day
-retention. This replaces what used to be two weeks of runbook-writing. The
-operator watches the CRD and reconciles until reality matches the spec —
-that's the Kubernetes pattern, applied to PostgreSQL.
--->
-
----
-
-# Rung 3 — Managed SaaS
-
-You stop running PostgreSQL and start *using* it. The provider's SRE team carries the pager.
-
-<div class="grid grid-cols-5 gap-4 mt-6 text-sm">
-<div class="text-center">
-  <div class="font-semibold">RDS / Aurora</div>
-  <div class="opacity-70 mt-1">AWS<br/>The default in industry</div>
-</div>
-<div class="text-center">
-  <div class="font-semibold">Cloud SQL</div>
-  <div class="opacity-70 mt-1">Google Cloud<br/>Tight GCP integration</div>
-</div>
-<div class="text-center">
-  <div class="font-semibold">Azure DB</div>
-  <div class="opacity-70 mt-1">Microsoft Azure<br/>AD identity-aware</div>
-</div>
-<div class="text-center">
-  <div class="font-semibold">Neon</div>
-  <div class="opacity-70 mt-1">Serverless Postgres<br/>Branching like git</div>
-</div>
-<div class="text-center">
-  <div class="font-semibold">Supabase</div>
-  <div class="opacity-70 mt-1">Postgres + REST API<br/>+ auth, out of the box</div>
-</div>
-</div>
-
-<v-click class="mt-6">
-
-> The cheap price of a managed DB is not the bill. It's the **lock-in and the egress cost** when you try to leave.
-
-</v-click>
-
-<!--
-Five providers worth naming. RDS/Aurora for incumbent weight, Cloud SQL and
-Azure DB for their respective ecosystems, Neon for serverless + branching
-(huge for CI), Supabase as the "Postgres-as-platform" story (PostgREST + Auth
-layered on top, RLS-enforced). Crunchy Bridge stays in speaker notes only.
-Don't spend more than one sentence on Supabase on slide — it's a provider,
-not a curriculum.
--->
-
----
-
-# Choosing Your Rung
-
-<v-clicks>
-
-1. **Regulated data** or **sovereign-cloud** requirement? → **Rung 2** (on-prem K8s)
-2. No regulatory constraint, **small team** (< 3 SREs)? → **Rung 3** (managed SaaS)
-3. Large team, **cost-sensitive at scale**? → **Rung 2** pays back the SRE investment
-4. Everyone else? → **Rung 3** — paying for someone else's pager is almost always cheaper than carrying it
-
-</v-clicks>
-
-<v-click>
-
-Whichever you pick for production, use **Rung 1 (Docker Compose)** for local dev from day one, and keep **Rung 0 (`psql`)** sharp for debugging.
-
 </v-click>
 
 <v-click>
 
-> Most teams should start at **Rung 3** and only descend to **Rung 2** when compliance, cost, or sovereignty forces the hand.
+Effect size: **rank-biserial correlation**.
 
 </v-click>
 
 <!--
-Decision rules, not a tree diagram — trees with eight arrows and five boxes
-stop being helpful. The real answer is cultural: teams with SRE maturity can
-absorb Rung 2, teams without will burn out trying. Student takeaway: when
-you join a company, find out which rung they're on and why.
--->
-
-
-<!--
-Decision-tree shape, but the real answer is cultural. Teams with SRE maturity
-can absorb Rung 2; teams without will burn out trying. Student takeaway: when
-you join a company, find out which rung they're on and why.
+Non-parametric is the right choice here. Code-quality metrics are
+famously heavy-tailed — one monorepo with 200k LOC and 5000 ruff
+issues drags any mean analysis into the weeds. Rank-based tests don't
+care about distribution shape, only about ordering. Mann-Whitney U is
+the standard tool; rank-biserial gives us effect-size so "statistically
+significant but trivial" doesn't slip past.
 -->
 
 ---
 
-# Connecting from Node.js
-
-```javascript
-import { Client } from 'pg'
-
-const client = new Client({
-  host:     process.env.PGHOST     ?? 'localhost',
-  port:     Number(process.env.PGPORT ?? 5432),
-  database: process.env.PGDATABASE,
-  user:     process.env.PGUSER,
-  password: process.env.PGPASSWORD,
-})
-
-try {
-  await client.connect()
-  const { rows } = await client.query(
-    'SELECT id, name FROM users WHERE id = $1', [userId]   // parameterised
-  )
-  console.log(rows[0])
-} finally {
-  await client.end()
-}
-```
-
-<!--
-Notice $1 — the parameter is sent separately from the SQL text. That's not
-style, it's the defence against SQL injection we'll see live in a few slides.
-The pg library will also auto-read PG* env vars if you pass no config at all
-— same story at every rung of the ladder.
--->
-
----
-
-# Connecting from Python (`psycopg` 3)
-
-```python
-import os, psycopg
-
-with psycopg.connect(
-    host=os.getenv("PGHOST", "localhost"),
-    port=int(os.getenv("PGPORT", 5432)),
-    dbname=os.getenv("PGDATABASE"),
-    user=os.getenv("PGUSER"),
-    password=os.getenv("PGPASSWORD"),
-) as conn:
-    with conn.cursor() as cur:
-        cur.execute(
-            "SELECT id, name FROM users WHERE name = %s",   # parameterised
-            ("Alice",),
-        )
-        for row in cur.fetchall():
-            print(row)
-```
-
-<v-click>
-
-Same shape as Node, at every rung: **read env vars, parameterise queries, let the context manager clean up.**
-
-</v-click>
-
-<!--
-psycopg 3's %s is *its* placeholder — not Python % formatting. The trailing
-comma in ("Alice",) is required to make a tuple. Context managers handle
-commit/rollback and close — exactly what you want in production code.
--->
-
----
-layout: section
----
-
-# Operations
-
-*Pooling, observability, backups — keeping it alive at 3 a.m.*
-
----
-
-# The Connection Pooling Problem
-
-<v-clicks>
-
-- A PostgreSQL connection costs ~10 MB RAM and a backend process
-- `max_connections` defaults to **100**. That's it.
-- 100 app pods × 20 connections each = **2000 connections requested** → ⚠️
-- Connections are expensive to open, cheap to reuse
-
-</v-clicks>
-
-<v-click>
-
-> The answer is a **connection pooler** — one in front of your database that multiplexes many client connections onto few server connections.
-
-</v-click>
-
-<!--
-This is the #1 reason a happy-path app dies under load. Default PostgreSQL
-caps out at 100 connections, and each of those is a forked backend process.
-Without a pooler, a few dozen app instances will exhaust connections before
-they exhaust anything else. This slide earns its keep the first time a
-student's deployed app falls over at 150 concurrent users.
--->
-
----
-
-# PgBouncer — Pooling Modes
-
-Many cheap app connections funnel into few expensive Postgres backends.
-
-| Mode         | Server connection held for… | Good for                 | Breaks…                       |
-|--------------|-----------------------------|--------------------------|-------------------------------|
-| Session      | the client's full session   | Safe default             | Little (but no sharing)       |
-| Transaction  | one transaction             | Web apps, REST APIs      | Session-level `SET`, `LISTEN` |
-| Statement    | one statement               | Extreme multiplexing     | Multi-statement transactions  |
-
-<v-click>
-
-> **Transaction pooling** is the sweet spot for stateless web apps. It's also the mode most people enable without reading the docs and break their `SET search_path` with.
-
-</v-click>
-
-<!--
-PgBouncer is boring, stable, and the default. pgcat is a newer Rust
-alternative with sharding built in — note it exists, don't depend on it in
-week one. Odyssey is Yandex's production-tested alternative. The pooling-mode
-table is the thing worth memorising.
--->
-
----
-
-# Observability — `pg_stat_statements`
-
-A built-in extension that records every query's aggregated stats.
-
-```sql
-CREATE EXTENSION pg_stat_statements;
-
-SELECT queryid, calls, mean_exec_time, total_exec_time, rows, query
-FROM pg_stat_statements
-ORDER BY total_exec_time DESC
-LIMIT 10;
-```
-
-<v-clicks>
-
-- Shows you the **top-N queries by total cost** across the whole server
-- Normalises `WHERE id = 42` and `WHERE id = 99` into the same entry
-- First install in any new PostgreSQL cluster — no exceptions
-- Usually enabled by default on managed SaaS
-
-</v-clicks>
-
-<!--
-If a student takes ONE thing away from the operations section, it's this
-extension. Every performance complaint in a real job starts with "which query
-is slow?" and pg_stat_statements answers that question in five seconds. The
-alternative is log scraping, which is painful, or DBA mysticism, which is
-worse.
--->
-
----
-
-# Observability — The Full Stack
-
-<div class="diagram-fit">
-
-```mermaid {scale: 0.7}
-flowchart LR
-    PG[(PostgreSQL)]
-    PG --> E[postgres_exporter]
-    PG -.slow log.-> L[Loki / stdout]
-    E --> P[Prometheus]
-    L --> G[Grafana]
-    P --> G
-    G --> A["alerts<br/>replication lag · deadlocks<br/>cache hit ratio · long queries"]
-```
-
-</div>
-
-<v-clicks>
-
-- `postgres_exporter` — scrapes `pg_stat_*` views into Prometheus metrics
-- Slow-query log — set `log_min_duration_statement = 500` to log anything over 500 ms
-- Grafana dashboard — the community one (12485) is a sane starting point
-
-</v-clicks>
-
-<!--
-You don't have to build this yourself. Most managed providers hand you a
-pre-built dashboard. On Rung 2 with CloudNativePG, the operator exposes
-metrics on a sidecar out of the box. The mental model matters more than the
-stack: metrics for rates and saturation, logs for individual incidents,
-traces for request attribution.
--->
-
----
-
-# Backups — The 3-2-1 Rule
-
-<v-clicks>
-
-- **3** copies of your data
-- on **2** different media
-- with **1** copy off-site
-
-</v-clicks>
-
-<v-click>
-
-**For PostgreSQL, concretely:**
-
-- `pg_dump` — logical, per-database, portable, slow for huge DBs
-- `pg_basebackup` + WAL archiving — physical, fast, **Point-in-Time Recovery**
-- **pgBackRest** or **WAL-G** — production-grade WAL-archive-aware tools
-
-</v-click>
-
-<v-click>
-
-> An **untested backup is a rumour**. Schedule a restore drill. If you don't restore to a scratch instance once a quarter, you don't have backups — you have hope.
-
-</v-click>
-
-<!--
-The 3-2-1 rule is from storage engineering generally, not PostgreSQL
-specifically. PITR is the killer feature: "restore the database to 14:37 last
-Tuesday" is the difference between a bad afternoon and a company-ending
-outage. Rehearse the restore. Every team that has never restored from backup
-is one DROP TABLE away from finding out their backups don't work.
--->
-
----
-
-# Health Checks
-
-<v-clicks>
-
-- **Liveness** — "is the Postgres process running?" — `pg_isready` is enough
-- **Readiness** — "is the database *actually serving*?" — much harder
-- A Postgres that's recovering WAL after a crash is **live but not ready**
-- A follower that's lagging 30 minutes is **ready** for reads but **not** for your app's consistency needs
-
-</v-clicks>
-
-<v-click>
-
-> A good readiness probe runs a cheap real query (`SELECT 1`) **and** checks replication lag **and** checks there's at least one usable connection in the pool. Three conditions, not one.
-
-</v-click>
-
-<!--
-This is where Kubernetes learners trip up. `pg_isready` answers "is the
-listener accepting TCP?" which is not the same as "is the database ready to
-serve your app." CloudNativePG gets this right out of the box; hand-rolled
-StatefulSets usually don't.
--->
-
----
-
-<div class="pg-trivia">
-  <div class="pg-trivia-title">🐘 Postgres trivia · <code>EXPLAIN (ANALYZE, BUFFERS)</code></div>
-  <div class="pg-trivia-body">
-    The single most useful four words in PostgreSQL. Prefix any <code>SELECT</code> / <code>UPDATE</code> /
-    <code>INSERT</code> / <code>DELETE</code> to see the planner's chosen plan, the row estimates, the actual rows,
-    and the page reads (<code>BUFFERS</code>). When the estimate and actual diverge by 10×, that's where your slow
-    query lives. When <code>shared read</code> is high, your cache is cold. <strong>Always</strong> send this
-    output, never a plain <code>EXPLAIN</code>, in a slow-query ticket.
-  </div>
-</div>
-
-<v-click>
-
-<div class="cool-tip">
-  <div class="cool-tip-title">💡 Cool tip · extensions worth knowing</div>
-  <code>pgvector</code> (embeddings / RAG), <code>PostGIS</code> (geospatial), <code>pg_trgm</code> (fuzzy text search),
-  <code>pgcrypto</code> (hashing, UUIDs), <code>timescaledb</code> (time-series). PostgreSQL's extension system is
-  the reason so many "purpose-built" databases are "PostgreSQL with two extensions" under the hood.
-</div>
-
-</v-click>
-
-<!--
-EXPLAIN ANALYZE BUFFERS is genuinely life-changing once you get fluent with
-it. Teach students to read the leaves first (which tables, what access method,
-row estimates) and work up. Extensions are why PostgreSQL is the answer to
-"which database should I use in 2026" 80% of the time.
--->
-
----
-layout: section
----
-
-# Security
-
-*Injection (live!), secrets, TLS, row-level security*
-
----
-
-# SQL Injection — The Risk
-
-```python
-# DO NOT DO THIS
-name  = request.GET['username']
-query = f"SELECT * FROM users WHERE username = '{name}'"
-cursor.execute(query)
-```
-
-<v-click>
-
-An attacker sends `name = Alice' OR '1'='1` and your query becomes:
-
-```sql
-SELECT * FROM users WHERE username = 'Alice' OR '1'='1'
-```
-
-</v-click>
-
-<v-click>
-
-The `OR '1'='1'` tautology matches every row. Login bypassed. Entire table leaked.
-
-</v-click>
-
-<v-click>
-
-> Still the **#1 web vulnerability** on the OWASP Top Ten — because people still write this code in 2026.
-
-</v-click>
-
-<!--
-Resist the temptation to "just escape quotes." Manual escaping is famous for
-being subtly wrong. Parameterised queries make the whole class of attack
-structurally impossible — which is a much better property than "I think I
-escaped everything."
--->
-
----
-
-# Prevention — Prepared Statements
-
-> Send the SQL and the values **separately**. The database never mixes data into code.
+# Why GH Archive?
 
 <div class="grid grid-cols-2 gap-6">
 <div>
 
-**Java / JDBC**
+**What it is**
 
-```java
-PreparedStatement ps = conn.prepareStatement(
-    "SELECT * FROM users WHERE username = ?"
-);
-ps.setString(1, userInput);
-ResultSet rs = ps.executeQuery();
-```
+- Every public GitHub event
+- Hourly `.json.gz` dumps
+- Free, unauthenticated HTTPS
+- Lineage back to 2011
 
 </div>
+
 <div>
 
-**Python / psycopg**
+**Why 2020-06**
 
-```python
-cur.execute(
-    "SELECT * FROM users WHERE username = %s",
-    (user_input,),
-)
-```
+- **Mature** repos — we see them today with 4+ years of commits
+- **Pre-Copilot** — humans wrote these commits, not LLMs
+- **One month** = 744 files = manageable batch
 
 </div>
 </div>
 
 <v-click>
 
-ORMs do this **for you** — `User.objects.filter(username=user_input)` in Django parameterises under the hood. **The moment you reach for string concatenation, stop.**
+Downside: 34% of the 2020 repos were gone from GitHub by 2026 —
+renamed, privated, deleted. We'll handle that in Stage 3.
 
 </v-click>
 
 <!--
-The rule is absolute: if you're concatenating user input into a SQL string,
-you have a bug. The edge case is dynamic SQL (ORDER BY, column names) which
-parameters don't cover — that needs an allow-list approach, never raw
-concatenation. Flag that in notes.
--->
-
----
-
-# Meet Little Bobby Tables
-
-<div class="flex justify-center mt-4">
-  <img src="https://imgs.xkcd.com/comics/exploits_of_a_mom.png" class="rounded shadow-md max-h-80" />
-</div>
-
-<div class="text-xs opacity-40 mt-3 text-center">
-
-Source: [xkcd #327 — Exploits of a Mom](https://xkcd.com/327/) by Randall Munroe (CC BY-NC 2.5)
-
-</div>
-
-<!--
-The most famous database joke of all time. If you remember one thing from this
-lecture, let it be: "sanitise your database inputs." Parameterised queries
-are how. The comic is twenty years old. We're still fighting this.
--->
-
----
-
-# Secrets Management
-
-Hardcoding `POSTGRES_PASSWORD: krikkit` in `docker-compose.yml` is fine for learning. For anything real, you need a **secrets manager**.
-
-<v-clicks>
-
-- **HashiCorp Vault** — the classic; dynamic database credentials, short-lived
-- **Cloud-native managers** — AWS Secrets Manager, GCP Secret Manager, Azure Key Vault
-- **External Secrets Operator** — Kubernetes operator that syncs secrets from any of the above into `Secret` resources
-- **SOPS** — encrypt secrets in git using KMS / age keys (good for GitOps)
-
-</v-clicks>
-
-<v-click>
-
-> **Never** commit a `.env` with real credentials. **Never** put secrets in container environment variables that show up in `docker inspect` output. **Always** rotate on any suspicion of leak.
-
-</v-click>
-
-<!--
-If the student goes home with one rule: secrets don't live in git. Dynamic
-credentials from Vault are the gold standard — the application gets a new
-short-lived password on every startup and never sees a long-lived one.
-External Secrets Operator is the K8s-friendly way to bridge cloud secret
-managers into your pods without copy-paste.
--->
-
----
-
-# TLS on the Wire
-
-```
-postgresql://user:password@db.example.com:5432/app?sslmode=verify-full
-```
-
-<v-clicks>
-
-- `sslmode=disable` — 💀 plaintext, **never** across a network
-- `sslmode=require` — encrypts, but does NOT verify the server's identity
-- `sslmode=verify-ca` — verifies the CA, not the hostname
-- `sslmode=verify-full` — verifies CA **and** hostname — the only correct choice for the internet
-
-</v-clicks>
-
-<v-click>
-
-> Managed providers default to TLS. Self-hosted often defaults to `prefer`, which silently falls back to plaintext. **Audit the mode** — don't trust the default.
-
-</v-click>
-
-<!--
-This is an easy one to miss in a lab environment where everything is
-localhost. In production the difference between verify-full and require is
-"I can be MITMed" vs "I can't." Managed SaaS providers get this right;
-self-hosted often doesn't.
--->
-
----
-
-# Row-Level Security
-
-PostgreSQL has **per-row** access control built in, since 9.5 (2016).
-
-```sql
-ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY tenant_isolation ON orders
-  USING (tenant_id = current_setting('app.current_tenant')::int);
-
--- in your app connection pool, at the start of each request:
-SET app.current_tenant = '42';
-
-SELECT * FROM orders;  -- only returns orders where tenant_id = 42
-```
-
-<v-click>
-
-> This is how Supabase makes a raw Postgres schema safe to expose as a public API. The database enforces the filter, so even a compromised client can't see other tenants' data.
-
-</v-click>
-
-<!--
-RLS is one of those features that seems niche until you need it, at which
-point nothing else works. Multi-tenant SaaS, per-user data partitioning,
-regulatory isolation — all of it becomes trivial with RLS and a connection
-setting. The cost is careful policy design; the reward is defence in depth
-that no application bug can bypass.
--->
-
----
-
-# Beyond Injection — Security Checklist
-
-<v-clicks>
-
-- **Least privilege** — the app's DB user can `SELECT`/`INSERT`/`UPDATE` what it needs, nothing more
-- **Secrets stay out of git** — Vault / ESO / SOPS / cloud managers
-- **TLS verify-full** — mandatory off-localhost
-- **Row-Level Security** — where the data model justifies it
-- **Backups** — tested, restorable, off-site
-- **Patches** — keep server, drivers, and ORM current
-- **Monitor & log** — anomalous query patterns are often the first sign of an incident
-- **Input validation** — not a replacement for parameterisation, but a useful second line
-
-</v-clicks>
-
-<v-click>
-
-> Defence in depth: prepared statements alone are not a security strategy, they're the **floor**.
-
-</v-click>
-
-<!--
-Most real-world database incidents are more boring than injection: a leaked
-password in a repo, an open port on a staging box, an over-privileged service
-account. Treat the whole stack as part of "database security."
+GH Archive is gwern-tier infrastructure. Free, stable, well-documented,
+archive.org-mirrored. Choosing June 2020 is deliberate: we wanted
+repos mature enough to have code-quality signals (not "day-old empty
+scaffold") but pre-LLM (so the signal is human, not GPT). The 34%
+attrition surprised me — I'll talk about that in Stage 3.
 -->
 
 ---
 layout: section
 ---
 
-# Practical Examples
+# Methodology
 
-*Same idea, three languages* 🐍 ☕
-
----
-
-# Django — Active Record in Python
-
-```python
-from django.db import models
-
-class Author(models.Model):
-    name  = models.CharField(max_length=100)
-    email = models.EmailField(unique=True)
-
-class Book(models.Model):
-    title            = models.CharField(max_length=200)
-    publication_date = models.DateField()
-    author           = models.ForeignKey(
-        Author, on_delete=models.CASCADE, related_name='books'
-    )
-```
-
-<!--
-Django feels the most "batteries included" of the three. One class produces a
-model, a migration, an admin page, a form. The ergonomics are great for CRUD
-apps and admin dashboards; less great when domain behaviour doesn't belong
-on a row.
--->
+*15 minutes — the dense act*
 
 ---
 
-# Django — Usage
+# Pipeline overview
 
-```python
-author = Author.objects.create(
-    name="George Orwell",
-    email="orwell@example.com",
-)
+```mermaid
+graph LR
+    S1[Stage 1<br/>Ingest<br/>GH Archive] --> S2[Stage 2<br/>Score<br/>profanity + emoji]
+    S2 --> S3[Stage 3<br/>Sample<br/>bin-matched cohorts]
+    S3 --> S4[Stage 4<br/>Analyze<br/>clone + static tools]
+    S4 --> S5[Stage 5<br/>Test<br/>Mann-Whitney U]
 
-Book.objects.create(
-    title="1984",
-    publication_date="1949-06-08",
-    author=author,
-)
-
-# Reverse relation via related_name='books'
-for book in author.books.all():
-    print(book.title)
-
-# Eager-load to avoid N+1
-Book.objects.select_related("author").filter(publication_date__year=1949)
-```
-
-<!--
-Note .create() returns a saved instance. select_related for ForeignKey to
-join eagerly; prefetch_related for reverse FK / M2M. Those two verbs plus the
-__ double-underscore filter syntax will carry students a long way.
--->
-
----
-
-# SQLAlchemy — Data Mapper in Python
-
-```python
-from sqlalchemy import Column, Integer, String, Date, ForeignKey
-from sqlalchemy.orm import declarative_base, relationship
-
-Base = declarative_base()
-
-class Author(Base):
-    __tablename__ = 'authors'
-    id    = Column(Integer, primary_key=True)
-    name  = Column(String(100))
-    email = Column(String(100), unique=True)
-    books = relationship("Book", back_populates="author")
-
-class Book(Base):
-    __tablename__ = 'books'
-    id               = Column(Integer, primary_key=True)
-    title            = Column(String(200))
-    publication_date = Column(Date)
-    author_id        = Column(Integer, ForeignKey('authors.id', ondelete="CASCADE"))
-    author           = relationship("Author", back_populates="books")
-```
-
-<!--
-No save() on the classes. The Session (next slide) is where persistence
-happens. back_populates keeps both sides of the relationship in sync in
-memory when you mutate either side.
--->
-
----
-
-# SQLAlchemy — Usage
-
-```python
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
-engine  = create_engine("postgresql://user:pass@localhost/mydb")
-Session = sessionmaker(bind=engine)
-
-with Session() as session:
-    orwell = Author(name="George Orwell", email="orwell@example.com")
-    Book(title="Animal Farm", publication_date="1945-08-17", author=orwell)
-    session.add(orwell)
-    session.commit()          # one transaction: INSERT author, INSERT book
+    style S5 fill:#ffe0e0,stroke:#ff6b6b
 ```
 
 <v-click>
 
-The Session is Data Mapper + Identity Map + Unit of Work in one object. Nothing hits the database until `commit()`.
+Five stages. The first four are shipped. The fifth is running right
+now; results land next month.
 
 </v-click>
 
 <!--
-This one slide is where the three patterns we named earlier all show up in
-one piece of code. Point at session.add (UoW: "New"), point at the implicit
-relationship cascade (the Book gets persisted because it's reachable from the
-tracked Author), point at the transaction boundary (commit).
+The picture is the whole talk in one slide. Every subsequent
+methodology slide zooms in on one box. Stage 5 is the only one not
+yet done — that's the Mann-Whitney U + plotting pipeline. I'll
+explicitly flag that again on the "what's NOT in this deck" slide in
+Act V.
 -->
 
 ---
 
-# Hibernate — Data Mapper in Java
+# Stage 1 · GH Archive ingest
 
-```java
-@Entity
-@Table(name = "authors")
-public class Author {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String name;
+<v-clicks>
 
-    @Column(unique = true)
-    private String email;
+- **744 files** — every hour of June 2020
+- `~50 GB` compressed, streamed through Python
+- Filter: `PushEvent` only (drops issues, stars, forks)
+- Flatten: one row per *commit*, not per event
+- Deduplicate: identical commit SHA across multiple events
+- Drop bots: `BOT_REGEX` matches dependabot, renovate, greenkeeper, GitHub Actions
 
-    @OneToMany(mappedBy = "author", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Book> books = new ArrayList<>();
+</v-clicks>
+
+<v-click>
+
+Output: `~49 M` commit-level rows aggregated per repo.
+
+</v-click>
+
+<!--
+Streaming is the key word. At 50 GB compressed, naive "download all,
+then process" would need ~200 GB disk and a day of wait. Streaming
+lets us process each hourly file as it arrives and discard the raw
+bytes. The bot filter is aggressive but leaky — we'll see in the
+Results act that 🤖 is the #3 most-common emoji, because humans
+copy bot-style conventions.
+-->
+
+---
+
+# Stage 2a · Profanity scoring
+
+<v-clicks>
+
+- **[LDNOOBW](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)** — List of Dirty, Naughty, Obscene and Otherwise Bad Words
+- Shopify's open dataset, ~2 500 English terms
+- Word-boundary match — not substring
+- Language guard via [lingua-rs](https://github.com/pemistahl/lingua-rs) — only score English commits
+- Per-repo counters: `profanity_hits`, `profanity_rate`, top-N word histogram
+
+</v-clicks>
+
+<v-click>
+
+<div class="fiit-callout-info mt-4">
+Why a dictionary, not ML? Reproducibility (Shopify pins the list), explainability (you can look up every match), and speed (49 M messages in ~5 h on one host).
+</div>
+
+</v-click>
+
+<!--
+LDNOOBW is the canonical "bad words" list in the open-source world.
+Shopify maintains it, multiple languages, versioned. A neural model
+would give me slightly better recall but lose reproducibility — a
+year from now the model weights would be different and my numbers
+would be non-replayable. Word-boundary + lingua guards against the
+"xxx in hex strings" false-positive cluster we'll see in results.
+-->
+
+---
+
+# Stage 2b · Emoji scoring
+
+<v-clicks>
+
+- **Unicode CLDR** via the `emoji` Python package
+- **Grapheme-cluster** aware — `👨‍👩‍👧` is ONE emoji, not three
+- **ZWJ-joiner** aware — "man + woman + girl" joined by U+200D
+- Per-repo counters: `emoji_hits`, `emoji_rate`, top-20 emoji
+
+</v-clicks>
+
+<v-click>
+
+<div class="fiit-callout mt-4">
+<code>len("👨‍👩‍👧")</code> is <strong>8</strong> in Python. Using <code>len()</code> for emoji counting is one of the top sources of off-by-N bugs in text pipelines.
+</div>
+
+</v-click>
+
+<!--
+Unicode is where naive text processing goes to die. A "family" emoji
+is visually one glyph but 8 code points (or more). The `emoji` package
+handles the grammar correctly. CLDR is the authoritative source for
+"what counts as an emoji" — you don't want to write that logic
+yourself. Trust me.
+-->
+
+---
+
+# Stage 3 · Cohort sampling
+
+<v-clicks>
+
+- **Cohort A — profane**: top 750 by `profanity_rate desc`
+- **Cohort B — clean**: `profanity_hits == 0`, sampled per bin
+- **Bins** (commit-count): `[20, 50)  [50, 200)  [200, 1000)  [1000, ∞)`
+- Clean cohort **matches** profane's bin distribution
+
+</v-clicks>
+
+<v-click>
+
+<div class="fiit-callout-info mt-4">
+Why bin-matching? Without it, big projects would dominate cohort A (more commits = more chances to swear), and the clean cohort would be biased toward tiny repos. We'd be measuring project size, not profanity.
+</div>
+
+</v-click>
+
+<!--
+Stratified matching is the single most important methodology choice
+in this pipeline. A naive "all profane vs. all clean" comparison would
+be confounded by repo size, language, activity, whatever. By matching
+on commit count, we're asking: "given two repos of similar activity,
+does the profane one have different quality?" That's the comparison
+that can answer the question.
+-->
+
+---
+
+# Stage 3 · The top-up story
+
+When the cohort was probed against GitHub — surprise:
+
+<v-clicks>
+
+- **509 / 1 500 repos were GONE** — 34% attrition
+- Deleted, renamed, privated, transferred
+- 2020 was a long time ago in GitHub years
+
+</v-clicks>
+
+<v-click>
+
+<div class="mt-6">
+
+Fix: `python -m oss_profanity.sampling --top-up`
+</div>
+
+- Demotes probe-404 rows to `status="missing"`
+- Redraws the shortfall from the unused pool
+- Back to 1 500 live. 1.7% residual 404s.
+
+</v-click>
+
+<!--
+SKIPPABLE IF SHORT ON TIME — this slide is a good "data-hygiene
+lessons" story but the hypothesis test doesn't depend on it. If we're
+running tight, jump to Stage 4. Worth saying: the top-up's bias
+effect is that we draw the #751..#1019 most-profane repos on the
+second pass, so average rate drifts down slightly — documented in
+IP-006's methodology appendix.
+-->
+
+---
+
+# Stage 4 · Repo worker
+
+<v-clicks>
+
+- **36 concurrent repos** — 3 hosts × 12 processes
+- `multiprocessing.Pool` per host, not Celery, not Airflow
+- **MongoDB CAS** is the queue primitive
+- Partial clone, resolve SHA < 2020-07-01, checkout, analyze, write back
+
+</v-clicks>
+
+<v-click>
+
+<div class="fiit-callout-info mt-4">
+One <code>find_one_and_update</code> per claim. Mongo serialises per-document updates, so 36 concurrent claims hand out 36 distinct documents. No Redis, no lock manager.
+</div>
+
+</v-click>
+
+<!--
+This is the "boring is a feature" moment. We had Redis on the plan;
+we deleted Redis from the plan. The CAS primitive on the document
+collection IS the queue. It scales perfectly for our workload — 36
+claims per second max, Mongo barely notices.
+-->
+
+---
+
+# Stage 4 · Static analyzers (5 tools)
+
+<v-clicks>
+
+- **`ruff` 0.15** — Python lints (bug-class + style)
+- **`bandit` 1.9** — Python security
+- **`eslint` 10 (flat config)** — JS/TS lints
+- **`lizard` 1.17** — cyclomatic complexity, 18 languages
+- **`jscpd` 4** — clone detection across JS / TS / HTML / CSS
+
+</v-clicks>
+
+<v-click>
+
+Each tool answers a different question. We do not combine their
+scores into one "quality number" — that's where snake-oil lives.
+
+</v-click>
+
+<!--
+SKIPPABLE IF SHORT — detail slide. The key takeaway: different tools,
+different questions, kept separate in the data. If anyone asks "why
+not SonarCube / CodeClimate / Codacy" — those are vendor tools,
+black-box, versioned outside our control. For reproducibility we
+needed self-hosted pinned versions. That rules out the SaaS cluster.
+-->
+
+---
+
+# Stage 4 · AST-level source scan
+
+<div class="grid grid-cols-2 gap-4">
+<div>
+
+**Regex approach — WRONG**
+
+```javascript
+const url = "https://a.com/x";   // real
+const fake = "// not a comment";
+```
+
+Regex `//.*$` matches *both* `//`s. The second is inside a string
+literal.
+
+</div>
+
+<div>
+
+**Tree-sitter — RIGHT**
+
+```text
+parse_string(lang, src)
+  → tree.find_nodes_by_type("comment")
+  → only the real // comment
+```
+
+40 language grammars, one API,
+one pinned version.
+
+</div>
+</div>
+
+<v-click>
+
+<div class="mt-4">
+
+Same logic for identifiers: comments + identifier names get profanity
+and emoji scanned separately. A `def fuck_it()` would score on
+identifiers, not comments.
+
+</div>
+
+</v-click>
+
+<!--
+This is the "clever bit" slide. Regex for code parsing works until it
+doesn't — and it doesn't in the pathological cases that dominate at
+49 M rows of scale. Tree-sitter solves it properly. The Rust/PyO3
+binding is fast (parses a typical source file in microseconds).
+-->
+
+---
+
+# Stage 5 · Statistical test
+
+<v-clicks>
+
+- **Mann-Whitney U**, two-sided
+- Per quality dimension, six tests total:
+  - `ruff_issues_per_kloc`, `eslint_issues_per_kloc`
+  - `lizard_avg_ccn`, `lizard_max_ccn`
+  - `jscpd_clones_per_kloc`, `comment_density`
+- **Bonferroni correction** for multiple comparisons (α = 0.05 / 6)
+- Effect size: rank-biserial correlation
+
+</v-clicks>
+
+<v-click>
+
+<div class="fiit-callout mt-4">
+This is what IP-008 ships. It's running on the faculty hosts right now — Mann-Whitney numbers were NOT ready in time for this talk.
+</div>
+
+</v-click>
+
+<!--
+The honest-note slide. Stage 5 is the last piece. It's a few hundred
+lines of Python with scipy and matplotlib; the work already done by
+Stage 4 makes it a one-evening job once the cohort is drained. I
+just can't stand here today and tell you the p-value. Next talk. I'll
+come back for the follow-up — that's a promise.
+-->
+
+---
+
+# Reproducibility claim
+
+Every pinned tool, every pinned version, one image SHA:
+
+<div class="grid grid-cols-2 gap-4 mt-4 text-sm">
+
+<div>
+
+**Python side**
+
+- Python 3.14
+- `tree-sitter-language-pack==1.6.2`
+- `ruff==0.15.12`
+- `bandit==1.9.4`
+- `lizard==1.17.25`
+- `lingua==2.2`
+- `emoji>=2.15`
+
+</div>
+
+<div>
+
+**Node side**
+
+- `eslint@10.2.1`
+- `@eslint/js@10.0.1`
+- `typescript-eslint@8.59.0`
+- `jscpd@4.0.9`
+
+</div>
+
+</div>
+
+<v-click>
+
+<div class="mt-4">
+
+Image tag: `ghcr.io/sibyx/oss-profanity:sha-<...>`. Re-run on 2032-01-01
+— byte-identical results.
+
+</div>
+
+</v-click>
+
+<!--
+Reproducibility isn't a nice-to-have for this project; it's the
+difference between "interesting paper" and "curiosity." Every tool is
+pinned, the image SHA is captured, the GH Archive slice is frozen in
+time (it's archival data by definition). If the paper lands in a
+journal, a reviewer can literally re-run the numbers.
+-->
+
+---
+
+# Limitations we know about
+
+<v-clicks>
+
+- **LDNOOBW is English-centric** — misses Slovak, Czech, Russian swearing
+- **Short commit messages are noisy** — one `fuck` in 3 commits ≠ culture
+- **Forks inherit parent's history** — we don't (yet) deduplicate forked commits
+- **Sample frame is 2020** — won't generalise to post-Copilot code
+- **Quality metrics are imperfect proxies** — `ruff_issues` ≠ "bad code"
+
+</v-clicks>
+
+<!--
+Name the limits BEFORE the results. It's cheap and it earns trust.
+The English-only caveat is the biggest one — the dataset certainly
+contains Slovak and Czech commit messages, and our dictionary misses
+them entirely. If someone asks about Slovak profanity in Q&A, the
+answer is: future work, yes, happy to collaborate.
+-->
+
+---
+
+# Ethics
+
+<div class="text-lg">
+
+<v-clicks>
+
+- Scored at the **repository** level, never the author
+- No `commits[].author` values in this deck
+- Top-N words shown in aggregate across 3.7 M repos
+- Commit-message quotes: **hand-picked, grandma-filtered, no attribution**
+
+</v-clicks>
+
+</div>
+
+<v-click>
+
+<div class="mt-6 fiit-callout-info">
+The point is never to embarrass an individual. The point is whether
+the signal, in aggregate, correlates with anything measurable.
+</div>
+
+</v-click>
+
+<!--
+Dead serious slide. Research on public data still has ethical weight.
+Anyone could grep for the "worst commits" list and go punch down. That
+would destroy the academic value of the work. So: aggregate only,
+anonymised quotes, repository-level only. If the paper becomes
+popular, someone will ask for the list of "the most profane repos" —
+the answer is no.
+-->
+
+---
+
+# With all that, here's the stack
+
+<div class="text-base opacity-60 mt-4">
+Tech act — 10 minutes. Engineers, this is for you.
+</div>
+
+<!--
+Transitional slide. The methodology is done; now we shift into the
+build. Audience break. Optional 15-second pause for questions "so
+far" — but keep it tight or we lose the budget.
+-->
+
+---
+layout: section
+---
+
+# Tech stack
+
+*10 minutes — boring is a feature*
+
+---
+
+# The stack at a glance
+
+<v-clicks>
+
+- **Python 3.14** — everything ingest + analysis
+- **MongoDB 7** — one collection, 3.7 M documents, 1.3 GB on disk
+- **Docker + Compose** — one image, four role profiles
+- **GitHub Actions → GHCR** — every push publishes an image
+- **Tree-sitter + LDNOOBW + lingua + `emoji`** — the detection libs
+
+</v-clicks>
+
+<v-click>
+
+<div class="mt-6 opacity-70">
+What's NOT here: Redis, Kafka, Airflow, Celery, Kubernetes, a vector DB.
+</div>
+
+</v-click>
+
+<!--
+Deliberately boring. Every additional component has a maintenance
+cost and a debuggability cost. The minimum stack that does the job is
+the best stack. If we ever scale to 100 M repos or go real-time, the
+picture changes. For now: the less moving parts, the less to debug
+at midnight.
+-->
+
+---
+
+# Why MongoDB
+
+<v-clicks>
+
+- **Document-per-repo** is the natural shape
+- `$group` does 90 % of what we need for stats
+- `find_one_and_update` gives us atomic **CAS** for free
+- No migrations — add a field, write it, query it
+- `extra="allow"` in our Pydantic models absorbs GitHub API drift
+
+</v-clicks>
+
+<v-click>
+
+<div class="fiit-callout-info mt-4">
+We planned Redis as a work queue. We deleted Redis from the plan. Mongo's CAS on one document IS the queue.
+</div>
+
+</v-click>
+
+<!--
+The Mongo choice gets pushback from database-traditionalists. Fair.
+For THIS workload — append-heavy writes, document-shaped data,
+compare-and-set as the only concurrency primitive — Mongo fits like a
+glove. A proper RDBMS would also work; the point is that we never
+hit the joins / transactions / referential-integrity problems that
+usually push people toward Postgres.
+-->
+
+---
+
+# Pydantic schema
+
+```python
+class Repo(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    id: int = Field(alias="_id")
+    full_name: str
+    first_seen_at: datetime
+    commit_stats: CommitStats
+    status: Status = "seen"
+    cohort: Cohort | None = None
+    code_analysis: CodeAnalysis | None = None
+    github_metadata: GitHubMetadata | None = None
+```
+
+<v-click>
+
+<div class="mt-4">
+
+One source of truth between Python and Mongo. `extra="allow"` is the
+"GitHub added a new field" escape hatch.
+
+</div>
+
+</v-click>
+
+<!--
+Pydantic validates at the boundary and gives us type hints all the way
+down. `extra="allow"` is crucial for this project — GitHub's REST API
+changes shape every few months and we'd rather absorb new fields than
+break on deploy. If a field becomes load-bearing, we add it to the
+model; otherwise it rides along as unstructured data.
+-->
+
+---
+
+# Parallelism without tears
+
+<div class="grid grid-cols-2 gap-4">
+<div>
+
+**The claim**
+
+```python
+doc = db.repos.find_one_and_update(
+    {"status": "pending"},
+    {"$set": {"status": "claimed",
+              "claimed_by": worker_id,
+              "claimed_at": now()}},
+    sort=[("commit_stats.profanity_rate", -1)],
+    return_document=AFTER,
+)
+```
+
+</div>
+
+<div>
+
+**The guarantee**
+
+- Atomic per document
+- Concurrent callers get distinct documents
+- Failure mode: `None` → sleep + retry
+
+</div>
+</div>
+
+<v-click>
+
+36 concurrent workers, no lock manager, no duplicate claims. Ever.
+
+</v-click>
+
+<!--
+This is the slide engineers in the audience nerd out over. It's 10
+lines of code that replaces an entire Celery deployment. Mongo's
+per-document atomicity does the heavy lifting. We don't need a
+broker, we don't need acks, we don't need dead-letter queues. The
+primitive IS the queue.
+-->
+
+---
+
+# The stale-claim reaper
+
+<v-clicks>
+
+- Worker claims a repo, then dies (segfault, OOM, network partition)
+- Claim sits at `status="claimed"` with `claimed_by` + `claimed_at`
+- Any live worker's `reclaim_stale()`:
+
+```python
+update_many(
+  {"status": "claimed",
+   "claimed_at": {"$lt": now() - 20min}},
+  {"$set": {"status": "pending"},
+   "$unset": {"claimed_by": "", "claimed_at": ""}})
+```
+
+- Stale claim → `pending` → next free worker picks it up
+
+</v-clicks>
+
+<v-click>
+
+No work lost. No work duplicated. One `update_many`.
+
+</v-click>
+
+<!--
+Fault tolerance as a dozen lines of code. The magic number is 20
+minutes (`STALE_CLAIM_TTL_MIN`). It needs to be bigger than the
+per-repo timeout (10 min) so we never reclaim a slow-but-alive
+worker. If a host reboots mid-run, this cleans up after it.
+-->
+
+---
+
+# Docker everywhere
+
+<v-clicks>
+
+- **One Dockerfile** — ingest, sampling, worker, assertions all share it
+- **Role-based profiles** — `docker compose --profile ingest run ingest`
+- **Same image, different entrypoints** — less drift between test and prod
+- Faculty hosts pull `ghcr.io/sibyx/oss-profanity:master`
+- Laptop builds the same image locally (M1 Max — see `docs/deploy/local`)
+
+</v-clicks>
+
+<!--
+"Same bits everywhere" is the IP-009 + IP-010 story condensed. The
+smoke test that gates merges uses the exact image that drains the
+1,500-repo cohort. If it's green on your laptop, it's green on the
+faculty. That's the Docker promise — we just leaned all the way in.
+-->
+
+---
+
+# GHA → GHCR
+
+```mermaid
+graph LR
+    push[git push master] --> build[GitHub Actions]
+    build --> img[ghcr.io/sibyx/oss-profanity:master<br/>+ :sha-<short><br/>+ :v0.1.0]
+    img --> w1[worker 1]
+    img --> w2[worker 2]
+    img --> w3[worker 3]
+```
+
+<v-click>
+
+<div class="mt-4">
+
+Rollback = `git revert + git push + docker compose pull && up -d`.
+No bespoke tooling.
+
+</div>
+
+</v-click>
+
+<!--
+Content-addressed deploy is one of the most valuable things you can
+do for a small project. GHCR is free for public packages, integrated
+with Actions, and operator-facing pulls are unauthenticated. The SHA
+tag is what the paper's "Reproducibility" section cites.
+-->
+
+---
+
+# Testing
+
+<div class="grid grid-cols-3 gap-4 mt-4">
+
+<div class="stat-big">
+  <div class="value">292</div>
+  <div class="label">tests passing</div>
+</div>
+
+<div class="stat-big">
+  <div class="value">17</div>
+  <div class="label">modules mypy --strict</div>
+</div>
+
+<div class="stat-big">
+  <div class="value">0</div>
+  <div class="label">broken builds on master</div>
+</div>
+
+</div>
+
+<v-click>
+
+<div class="mt-6">
+
+Integration tests hit a throwaway Mongo via `clean_db` fixture.
+Smoke test `./scripts/smoke.sh` green-gates every merge.
+
+</div>
+
+</v-click>
+
+<!--
+The paper needs numbers; the numbers need the tests. If an aggregation
+is off by a factor of 10, the p-value is meaningless. Test coverage
+isn't the point — test *correctness* is. Every Mongo aggregation has
+at least one fixture test that validates its output shape.
+-->
+
+---
+
+# "Boring" is a feature
+
+<v-clicks>
+
+- No Kafka
+- No Airflow
+- No Kubernetes
+- No Celery
+- No service mesh
+- No vector DB
+
+</v-clicks>
+
+<v-click>
+
+<div class="mt-6 text-xl">
+
+The boring scaffolding buys us the freedom to ask the <strong>interesting</strong> question.
+
+</div>
+
+</v-click>
+
+<!--
+Resist the temptation to over-engineer research infrastructure. Every
+component you add is a component you have to debug at midnight two
+days before the conference. The goal is answering the question, not
+showing off the toolchain. Boring = reliable = more time for the
+actual research.
+-->
+
+---
+layout: section
+---
+
+# Results so far
+
+*15 minutes — the numbers*
+
+---
+
+# Ingest by the numbers
+
+<div class="grid grid-cols-2 gap-4 mt-6">
+
+<div class="stat-big">
+  <div class="value">3,702,633</div>
+  <div class="label">repos seen</div>
+</div>
+
+<div class="stat-big">
+  <div class="value">~49 M</div>
+  <div class="label">commits scored</div>
+</div>
+
+<div class="stat-big">
+  <div class="value">744</div>
+  <div class="label">hourly files parsed</div>
+</div>
+
+<div class="stat-big">
+  <div class="value">~50 GB</div>
+  <div class="label">compressed throughput</div>
+</div>
+
+</div>
+
+<v-click>
+
+<div class="text-center mt-6 text-sm opacity-60">
+June 2020 — 30 days × 24 hours — one GH Archive slice
+</div>
+
+</v-click>
+
+<!--
+Four big numbers. The 3.7 M repos number always surprises people — GH
+Archive captures everything public, including tiny one-commit
+experiments. Of those 3.7 M, only ~700 k hit our minimum-activity
+floor of 20 commits in-window. The cohort (1,500 repos) is drawn from
+that filtered subset.
+-->
+
+---
+
+# Profanity prevalence
+
+<div class="mt-8 text-center">
+
+<div class="text-5xl font-bold text-[#00A9E0]">0.08 %</div>
+
+<div class="text-lg mt-4 opacity-80">
+of commit messages contain at least one LDNOOBW match
+</div>
+
+</div>
+
+<v-click>
+
+<div class="mt-6 text-center opacity-60">
+
+38 468 profane commits out of ~49 M total
+
+</div>
+
+</v-click>
+
+<v-click>
+
+<div class="fiit-callout mt-6">
+The audience expected more. So did I. Turns out <strong>professional
+software developers are professionally polite in public Git</strong> —
+at least in English.
+</div>
+
+</v-click>
+
+<!--
+This was the first genuinely surprising number for me. If you'd asked
+me "what fraction of commits contain profanity" I would have said
+5-10%. The answer is 80× lower. Public-facing Git history is more
+polite than you'd think. Which means the signal we ARE seeing is
+concentrated — the repos that swear really swear a lot.
+-->
+
+---
+
+# Emoji prevalence
+
+<div class="mt-8 text-center">
+
+<div class="text-5xl font-bold text-[#00A9E0]">0.49 %</div>
+
+<div class="text-lg mt-4 opacity-80">
+of commit messages contain at least one emoji
+</div>
+
+</div>
+
+<v-click>
+
+<div class="mt-6 text-center">
+
+239 253 emoji commits — <strong>6× more than profanity</strong>
+
+</div>
+
+</v-click>
+
+<v-click>
+
+<div class="fiit-callout-info mt-6">
+Developers emoji more than they swear. Probably because 🚀 is a commit
+convention now, whereas "fuck" is still a personal choice.
+</div>
+
+</v-click>
+
+<!--
+The 6× factor is my second favorite finding. Emoji entered the
+commit-message mainstream via conventional-commits, semantic-release,
+and gitmoji. "I shipped this" became 🚀; "I fixed a bug" became 🐛.
+Conventions propagate through ecosystems faster than individual
+expression. Which is also why the AI act at the end predicts
+emoji-per-commit stays flat or rises even as profanity declines.
+-->
+
+---
+
+# Top profanity words
+
+<div class="mt-4 text-sm">
+
+<div class="bar-row"><div class="label">xxx</div><div class="bar" style="width: 100%"></div><div class="count">5 619</div></div>
+<div class="bar-row"><div class="label">shit</div><div class="bar" style="width: 92%"></div><div class="count">5 176</div></div>
+<div class="bar-row"><div class="label">xx</div><div class="bar" style="width: 72%"></div><div class="count">4 061</div></div>
+<div class="bar-row"><div class="label">fuck</div><div class="bar" style="width: 66%"></div><div class="count">3 706</div></div>
+<div class="bar-row"><div class="label">ass</div><div class="bar" style="width: 65%"></div><div class="count">3 663</div></div>
+<div class="bar-row"><div class="label">fucking</div><div class="bar" style="width: 37%"></div><div class="count">2 091</div></div>
+<div class="bar-row"><div class="label">sex</div><div class="bar" style="width: 19%"></div><div class="count">1 071</div></div>
+<div class="bar-row"><div class="label">sucks</div><div class="bar" style="width: 13%"></div><div class="count">747</div></div>
+<div class="bar-row"><div class="label">rape</div><div class="bar" style="width: 11%"></div><div class="count">605</div></div>
+<div class="bar-row"><div class="label">guro</div><div class="bar" style="width: 10%"></div><div class="count">573</div></div>
+
+</div>
+
+<v-click>
+
+<div class="fiit-callout mt-4">
+Wait — <code>xxx</code>? <code>xx</code>? Those aren't profanity. Those are <code>xxx-placeholder</code>, hex strings, version stubs. LDNOOBW matches the substring inside longer tokens.
+</div>
+
+</v-click>
+
+<!--
+The `xxx` and `xx` at the top are a methodology footnote. LDNOOBW
+has "xxx" because it's slang for adult content, but in code it's 10×
+more common as a placeholder. This is the "your detector finds things
+that are not what you think" lesson. For the Mann-Whitney test we'll
+either strip these or annotate them as "known false-positive cluster."
+-->
+
+---
+
+# The NSFW subgenre
+
+Down the top-30 list…
+
+<v-clicks>
+
+- `porn`, `sex`, `sexy`, `sexual`
+- `vibrator`, `genitals`, `hentai`, `guro`
+- `hardcore`, `cum`, `anal`, `dick`, `bitch`
+
+</v-clicks>
+
+<v-click>
+
+<div class="fiit-callout mt-6">
+There is a <strong>cottage industry of NSFW codebases on GitHub</strong>.
+We did not plan for this. It's a methodology footnote and an
+unexpected sampling challenge — in the cohort, they'll be
+over-represented in cohort A unless we filter.
+</div>
+
+</v-click>
+
+<!--
+Genuinely didn't see this coming at design time. Adult-content repos
+(fanfic tooling, adult-game mods, "toys" libraries) are a real
+subgenre on GitHub and they're scored as maximally-profane by LDNOOBW.
+For IP-008 we'll look at whether they skew results and consider either
+(a) a topic-filter to exclude them, or (b) reporting the analysis with
+and without. Either is a defensible choice; both need to be declared
+in advance.
+-->
+
+---
+
+# Top emoji
+
+<div class="mt-4 text-sm">
+
+<div class="bar-row"><div class="label">🚀</div><div class="bar" style="width: 100%"></div><div class="count">19 161</div></div>
+<div class="bar-row"><div class="label">🐛</div><div class="bar" style="width: 50%"></div><div class="count">9 627</div></div>
+<div class="bar-row"><div class="label">🤖</div><div class="bar" style="width: 50%"></div><div class="count">9 581</div></div>
+<div class="bar-row"><div class="label">✨</div><div class="bar" style="width: 48%"></div><div class="count">9 249</div></div>
+<div class="bar-row"><div class="label">🎩</div><div class="bar" style="width: 40%"></div><div class="count">7 779</div></div>
+<div class="bar-row"><div class="label">⬆</div><div class="bar" style="width: 34%"></div><div class="count">6 627</div></div>
+<div class="bar-row"><div class="label">❤</div><div class="bar" style="width: 34%"></div><div class="count">6 621</div></div>
+<div class="bar-row"><div class="label">🎸</div><div class="bar" style="width: 23%"></div><div class="count">4 578</div></div>
+<div class="bar-row"><div class="label">🎨</div><div class="bar" style="width: 21%"></div><div class="count">4 081</div></div>
+<div class="bar-row"><div class="label">📝</div><div class="bar" style="width: 17%"></div><div class="count">3 378</div></div>
+
+</div>
+
+<!--
+The emoji distribution is more concentrated than profanity — 🚀 alone
+is ~40% of the top-10. Next three slides unpack the meaning of the
+leaders. The short version: emoji in commits is almost entirely
+conventional (release, bugfix, feature) rather than expressive.
+-->
+
+---
+
+# 🚀 — the king of commits
+
+<div class="text-center mt-8">
+
+<div class="text-8xl">🚀</div>
+
+<div class="text-3xl mt-4 font-semibold">19 161 commits</div>
+
+<div class="mt-4 opacity-70">
+Twice the next contender. The universal "ship it" glyph.
+</div>
+
+</div>
+
+<v-click>
+
+<div class="mt-6 text-center opacity-60">
+Also: semantic-release, conventional-commits, "first release", "deploy to prod."
+</div>
+
+</v-click>
+
+<!--
+🚀 is the most commercialised emoji in open source. gitmoji.dev has
+it listed as "ship new features." A generation of release automation
+tools emit it by default. It's barely "expression" at this point — it's
+more like punctuation for a specific event type.
+-->
+
+---
+
+# 🤖 — the bot uprising
+
+<div class="grid grid-cols-2 gap-6 mt-6">
+
+<div>
+
+**Expected**: 🤖 represents bot commits. Our `BOT_REGEX` should have
+filtered them.
+
+</div>
+
+<div>
+
+**Reality**: 🤖 is the **#3 most common emoji**. 9 581 commits.
+
+</div>
+
+</div>
+
+<v-click>
+
+<div class="mt-6">
+
+Why? `BOT_REGEX` matches the **author name**. It doesn't filter
+human authors who write `🤖 build(deps): bump ...` in the conventional
+style bots taught them.
+
+</div>
+
+</v-click>
+
+<v-click>
+
+<div class="fiit-callout mt-6">
+Methodology refinement for IP-008: strip <code>🤖</code>-prefixed messages before aggregating — or keep them as a separate "bot-adjacent" category.
+</div>
+
+</v-click>
+
+<!--
+Loved discovering this one. It's genuinely hard to filter bots when
+humans imitate bot conventions. The `BOT_REGEX` is doing what it was
+told — matching dependabot, renovate, greenkeeper etc as *authors* —
+but not catching humans who've adopted the 🤖 prefix. A good reminder
+that filters are always leaky and need validation at the output.
+-->
+
+---
+
+# 🎩 and 🎸 — the Angular effect
+
+<v-clicks>
+
+- **🎩** — 7 779 commits. `angular/commit-message-convention` uses it for "hat tip."
+- **🎸** — 4 578 commits. Not emotion. Code-style / formatting changes in the Angular style guide.
+- The 🎸 count is **essentially one convention propagating through an ecosystem**.
+
+</v-clicks>
+
+<v-click>
+
+<div class="mt-6 opacity-70">
+Emoji in commits is ecosystem-level norms, not individual expression.
+Gitmoji and friends made sure of that.
+</div>
+
+</v-click>
+
+<!--
+Most people don't know what 🎸 "means" in a commit. They know because
+they adopted Angular's convention and then propagated it to the rest
+of their stack. One style guide, thousands of commits. That's how
+conventions spread.
+-->
+
+---
+
+# Matched cohort composition
+
+<v-clicks>
+
+- **1 500 repos live** after top-up (2 × 750 bin-matched)
+- **27.9 % Python + JS/TS** — eligible for ruff / eslint
+- **67.5 % tree-sitter coverage** — eligible for source scan
+- **1.7 % 404 attrition** — repos that died between sample and probe
+
+</v-clicks>
+
+<v-click>
+
+<div class="fiit-callout-info mt-4">
+For the paper: ruff/eslint numbers will cite the 418-repo Python+JS/TS
+subset; the full 1 013-repo tree-sitter result covers the primary
+emoji/profanity source-scan hypothesis.
+</div>
+
+</v-click>
+
+<!--
+Honest subset reporting. You don't have to pretend you have 1,500
+Python repos when you have 107. The matched design still holds —
+within Python, the profane vs. clean split is bin-matched. We just
+can't generalise to languages where ruff doesn't apply.
+-->
+
+---
+
+# A few commit quotes
+
+<div class="space-y-4 mt-6">
+
+<div class="commit-msg">fuck mono</div>
+
+<div class="commit-msg">i fucking hate git sometimes</div>
+
+<div class="commit-msg">Fuck emojis.  You heard me.</div>
+
+</div>
+
+<v-click>
+
+<div class="mt-6 opacity-60 text-sm">
+Hand-picked from the 50-row sample · no repo or author attribution · grandma-approved
+</div>
+
+</v-click>
+
+<!--
+Three. One about a build tool (every dev has had this fight). One about
+git (universal). One about emoji, which is a meta-callback to the
+previous slide set — the audience laughs at themselves for counting 🚀
+and then reading "fuck emojis." Hand-picked, no attribution. If anyone
+asks where they came from: GH Archive, June 2020, aggregated,
+unattributed. I'm not going to name repos.
+-->
+
+---
+
+# What Stage 4 writes back
+
+```json
+{
+  "_id": 123456789,
+  "status": "done",
+  "primary_language": "python",
+  "code_analysis": {
+    "loc_total": 12843,
+    "files_scanned": 87,
+    "comment_profanity_hits": 4,
+    "identifier_profanity_hits": 0,
+    "comment_emoji_hits": 1,
+    "identifier_emoji_hits": 0,
+    "ruff_issues": 234,
+    "ruff_issues_per_kloc": 18.22,
+    "lizard_avg_ccn": 3.4,
+    "lizard_max_ccn": 22
+  }
 }
 ```
 
-<!--
-Java verbosity makes the pattern obvious: lots of annotations, no persistence
-code on the entity. Skip the EntityManagerFactory setup; students know what
-it looks like from other Java courses.
--->
-
----
-
-# Hibernate — Usage
-
-```java
-EntityManager em = emf.createEntityManager();
-em.getTransaction().begin();
-
-Author a = new Author();
-a.setName("Agatha Christie");
-a.setEmail("agatha@example.com");
-em.persist(a);                 // tracked as New
-
-em.getTransaction().commit();  // Unit of Work flushes the INSERT
-```
-
 <v-click>
 
-Same pattern as SQLAlchemy: `EntityManager` = Mapper + Identity Map + Unit of Work.
+<div class="mt-4">
+
+This is the input to Stage 5. ~1 500 of these → 6 Mann-Whitney tests.
+
+</div>
 
 </v-click>
 
 <!--
-Common pitfall worth flagging: if you also create a Book and do
-book.setAuthor(a), remember to a.getBooks().add(book) so both sides of the
-relationship agree in memory. Hibernate doesn't do this for you on the set
-path, only on load.
+One document per repo. `code_analysis` is the structured payload
+Stage 5 reads. Every field is a pre-computed quality dimension. The
+Mann-Whitney test compares distributions of `ruff_issues_per_kloc`
+etc. between the two cohorts. Six tests, Bonferroni-corrected.
+-->
+
+---
+
+# Everything currently runs
+
+<div class="mt-4 text-sm opacity-80">
+
+```text
+$ docker compose logs -f --tail 10 worker
+worker-1  | 2026-04-24 18:03:12 INFO loop: claim repo 42981 (status→claimed)
+worker-1  | 2026-04-24 18:03:18 INFO _processor: pipeline ok (repo=42981, lang=python, loc=8120, 6.2s)
+worker-2  | 2026-04-24 18:03:19 INFO _processor: skip repo 42982 (archived)
+worker-1  | 2026-04-24 18:03:24 INFO loop: claim repo 42983 (status→claimed)
+worker-3  | 2026-04-24 18:03:25 INFO _processor: pipeline ok (repo=42983, lang=javascript, loc=23410, 5.8s)
+```
+
+</div>
+
+<v-click>
+
+<div class="mt-6 text-center">
+
+Status: `claimed` hovering at 36 · `pending` ↓ · `done` ↑
+
+</div>
+
+</v-click>
+
+<v-click>
+
+<div class="mt-2 text-center opacity-70">
+Eta: ~6 hours to drain · ~1 400 repos analysed · results next talk.
+</div>
+
+</v-click>
+
+<!--
+This is the "it's real" slide. Not a mock — this is what the log
+looks like on a faculty host. In the speaker notes I'll reference
+the four Mongo monitoring queries from `docs/DEPLOYMENT.md` but I
+won't read them on-screen.
+-->
+
+---
+
+# What's NOT in this deck
+
+<v-clicks>
+
+- **Mann-Whitney U statistic** — Stage 5 is running
+- **Effect size** (rank-biserial correlation) — ditto
+- **Per-language subgroup plots** — ditto
+- **p-values** — ditto
+
+</v-clicks>
+
+<v-click>
+
+<div class="fiit-callout mt-6">
+These ship with the paper. Come back for the follow-up. I promise a
+p-value next time.
+</div>
+
+</v-click>
+
+<!--
+Epistemic humility as a design decision. I'd rather leave gaps in the
+deck than fabricate numbers. Anyone who shows p-values at this stage
+of a research project is either lying or didn't do the matching
+properly. Say what you have, say what you don't, move on.
+-->
+
+---
+
+# The one-sentence finding (so far)
+
+<div class="text-2xl mt-8 leading-relaxed">
+
+<v-clicks>
+
+- Profanity is <strong>rare</strong> — 0.08 % of commits.
+- Emoji is <strong>6× more common</strong> — 0.49 %.
+- Bots infiltrated commit conventions.
+- The matched cohort is ready for <strong>inferential analysis</strong>.
+
+</v-clicks>
+
+</div>
+
+<!--
+Four beats. Descriptively, that's what we have. Inferentially, that's
+what we'll have soon. Both sentences are honest.
 -->
 
 ---
 layout: section
 ---
 
-# Quizzes
+# AI & the future
 
-*Quick sanity checks* 🧠
-
----
-
-# Quiz 1 — Active Record or Data Mapper?
-
-You are building a small blog by yourself. You want quick iteration, simple CRUD, minimal ceremony. Complex business logic is unlikely.
-
-**Which pattern fits, and why?**
-
-<v-click>
-
-> **Active Record.** You want `post.save()` and to be done. Data Mapper's session / unit-of-work overhead is justified when you have real domain behaviour to protect from the database — you don't, yet. Django or Rails will get you shipping in an afternoon.
-
-</v-click>
-
-<!--
-The point: pattern choice is a trade-off, not a truth. For a solo CRUD app,
-the "simpler, more coupled" option is genuinely correct. Push back on
-students who overcorrect towards enterprise patterns.
--->
+*5 minutes — speculation, clearly marked*
 
 ---
 
-# Quiz 2 — Spot the Performance Bug
-
-```python
-posts = Post.objects.all()              # 100 posts
-for post in posts:
-    print(post.title)
-    print("Comments:", len(post.comments.all()))
-```
-
-<v-click>
-
-> **N+1 query problem.** One query fetches the posts; each `post.comments.all()` fires another. That's 1 + 100 = **101 queries** for one page.
-
-</v-click>
-
-<v-click>
-
-**Fix** — eager-load in a single prefetch:
-
-```python
-Post.objects.all().prefetch_related('comments')   # 2 queries, regardless of N
-```
-
-</v-click>
-
-<!--
-Extremely common in the wild. Every ORM has a toolbox for eager loading;
-learn the verbs (select_related, prefetch_related, joinedload, JOIN FETCH)
-for whichever ORM you're using.
--->
-
----
-
-# Quiz 3 — Spot the Security Bug
-
-```javascript
-app.get("/users", (req, res) => {
-  const search = req.query.name
-  db.query(
-    `SELECT * FROM users WHERE name = '${search}'`,
-    (err, result) => res.json(result.rows)
-  )
-})
-```
-
-<v-click>
-
-> **SQL injection.** `?name=bob' OR '1'='1` leaks every user. `?name=x'; DROP TABLE users; --` is worse.
-
-</v-click>
-
-<v-click>
-
-**Fix** — parameterise:
-
-```javascript
-db.query(
-  "SELECT * FROM users WHERE name = $1",
-  [search],
-  (err, result) => res.json(result.rows),
-)
-```
-
-</v-click>
-
-<!--
-If a student ever concatenates user input into SQL in your code review, push
-back hard. It's rarely "just this once" — the pattern metastasises.
--->
-
----
-
-# Quiz 4 — Spot the Deployment Mistake
-
-```yaml
-# production k8s manifest
-env:
-  - name: PGHOST
-    value: db.prod.internal
-  - name: PGPASSWORD
-    value: "hunter2-prod-admin"             # (1)
-  - name: PGSSLMODE
-    value: "disable"                         # (2)
-- run: kubectl exec -it postgres-0 -- psql -c "ALTER TABLE users ADD COLUMN age INT NOT NULL"
-                                             # (3)
-```
-
-<v-click>
-
-> **Three mistakes** — can you name them?
-
-</v-click>
+# The LLM question
 
 <v-clicks>
 
-1. 💀 Hardcoded password in the manifest (commit this and it's in git forever)
-2. 💀 `sslmode=disable` over a network (MITM-able, plaintext credentials)
-3. 💀 Manual `ALTER TABLE` outside migrations, **and** `NOT NULL` without a default on a live table (will lock the table for the duration of the backfill)
+- Copilot GA: mid-2022
+- Cursor: 2023. Claude: 2024. Cody + ChatGPT Desktop: 2024.
+- By 2026, an unknown-but-non-trivial fraction of commits are AI-assisted
+- **AI assistants are rigorously polite.** They don't swear.
+
+</v-clicks>
+
+<v-click>
+
+<div class="text-xl mt-6">
+
+What happens to <strong>🚀</strong>, <strong>shit</strong>, and
+<strong>🐛</strong> as human-drafted commits dilute with AI-drafted ones?
+
+</div>
+
+</v-click>
+
+<!--
+This is the speculative act. Everything here is pattern-matching
+hypothesis, not measured fact. The 2020 window was chosen specifically
+because it predates Copilot — so any LLM effect on our data is zero
+by construction. The interesting question is what a 2024 or 2026
+re-run would show.
+-->
+
+---
+
+# Hypothesis 1 · Profanity declines
+
+<v-clicks>
+
+- Baseline swear-in-commit rate is human-driven (our 0.08 %)
+- AI assistants produce sanitised text by default
+- If x% of future commits are AI-drafted, the aggregate rate falls by ~x%
+- The <strong>per-developer</strong> baseline probably also declines
+  — once your workflow is "Copilot drafts, you edit," you edit out the
+  `fix: this is horrible`
+
+</v-clicks>
+
+<v-click>
+
+<div class="fiit-callout mt-6">
+Testable prediction: mean profanity-per-commit declines monotonically
+from 2022 onward.
+</div>
+
+</v-click>
+
+<!--
+Falsifiable prediction. Run the pipeline on 2022, 2023, 2024 windows
+and plot. If the prediction is right, the line slopes down. If it's
+wrong, we learn something more interesting — maybe humans swear MORE
+around AI code ("why are you like this, Copilot").
+-->
+
+---
+
+# Hypothesis 2 · Emoji convention survives
+
+<v-clicks>
+
+- 🚀, 🐛, ✨ are **ecosystem norms**, not individual expression
+- AI autocomplete is **trained on the past** — it reinforces conventions
+- Human using Copilot writes "fix" → Copilot suggests "fix: 🐛 ..."
+- The conventional-commits style PROPAGATES faster, not slower
+
+</v-clicks>
+
+<v-click>
+
+<div class="fiit-callout mt-6">
+Testable prediction: emoji-per-commit stays flat or <strong>rises</strong>
+2022 onward — especially the conventional-commit emoji set.
+</div>
+
+</v-click>
+
+<!--
+This is the counter-intuitive prediction. You'd think AI would smooth
+out all personality, and it does — but convention ISN'T personality.
+Convention is structure. LLMs are pattern-matchers par excellence, so
+they reinforce structured patterns. Emoji commit conventions are
+exactly the kind of pattern they'd amplify.
+-->
+
+---
+
+# The longitudinal redo
+
+<v-clicks>
+
+- Same pipeline, three windows: **2020-06**, **2024-06**, **2026-06**
+- GH Archive is window-agnostic — one env var flip: `GHA_START` / `GHA_END`
+- Each window: ~5 h ingest + ~6 h Stage 4 + an afternoon of Stage 5
+- Publishable year-over-year finding
+- **IP-012** is this proposal, already drafted in my head
 
 </v-clicks>
 
 <!--
-One question, three lessons from three different sections of the lecture.
-This quiz is the callback quiz — secrets, TLS, migrations — all the
-application-aspects concerns in one YAML.
+The pipeline is deliberately time-agnostic. Everything from Stage 1
+to Stage 5 runs on whatever window you tell it. So the longitudinal
+study is already within reach — it's just another run. That's the
+upside of being boring: marginal experiments are cheap.
+-->
+
+---
+
+# The meta-question
+
+<div class="text-xl mt-8 leading-relaxed">
+
+If AI assistants iron out the rough edges of code, do we
+<strong>lose signal</strong>?
+
+</div>
+
+<v-click>
+
+<div class="mt-6 opacity-80">
+A grumpy <code>// this is horrible</code> comment is a canary for how
+much of the <strong>author</strong> is still in the work.
+</div>
+
+</v-click>
+
+<v-click>
+
+<div class="mt-6 opacity-80">
+When the comment disappears, so does a cultural marker.
+</div>
+
+</v-click>
+
+<v-click>
+
+<div class="mt-4 opacity-70 text-sm">
+Not a bad outcome, not a good outcome — <em>a measurable outcome</em>.
+</div>
+
+</v-click>
+
+<!--
+End Act VI on the actually-interesting philosophical note. The joke
+opening was "do swearing programmers write better code?" The end is
+"does AI homogenise the cultural fingerprint of a codebase?" That's
+the sneaky real question, and the pipeline we just walked through
+can in principle answer it.
 -->
 
 ---
 layout: section
 ---
 
-# Summary
+# Q & A
+
+*5 minutes*
 
 ---
+layout: center
+class: text-center
+---
 
-# What We Covered Today
+# Thank you
 
-<v-clicks>
+<div class="text-lg opacity-70 mt-4">
+Jakub Dubec · FIIT STU · <a href="https://github.com/Sibyx/oss-profanity">github.com/Sibyx/oss-profanity</a>
+</div>
 
-1. **ORMs** are a stack of patterns — Active Record, Data Mapper, Gateways, Lazy Loading, Identity Map, Unit of Work
-2. **Migrations** are version control for your schema — expand/contract for zero-downtime
-3. **The Deployment Ladder** — laptop → Docker → Kubernetes + CloudNativePG → managed SaaS
-4. **Operations** — pool with PgBouncer, observe with `pg_stat_statements`, back up with the 3-2-1 rule
-5. **Security** — prepared statements (always), secrets out of git, TLS verify-full, RLS where it fits
-6. **ORMs are a layer, not a wall** — read the SQL, watch for N+1, own your schema
+<div class="mt-6">
+  <img src="/images/logo_fiit.svg" class="h-10 inline-block" alt="FIIT STU" />
+</div>
 
-</v-clicks>
-
-<v-click>
-
-> *"An ORM makes the easy things easy and the hard things visible."*
-
-</v-click>
+<div class="mt-10 text-sm opacity-50">
+Slides at <code>presentation/opencamp/</code> in the repo. PDF export
+committed pre-talk. CC-BY-SA.
+</div>
 
 <!--
-One slide, one map of the lecture. Students should leave able to name the
-patterns, recognise them in code, and reach for the right tool when they hit
-the matching problem.
+Pause here for applause then hand over to Q&A. Anticipated questions
+and one-line answers (keep in your head):
+
+- "Slovak swearing?" — future work; LDNOOBW is English; happy to
+  collaborate on a Slovak list.
+- "Why not ML profanity detection?" — reproducibility; dictionary
+  is pinnable.
+- "Did you find anything?" — descriptively yes, inferentially wait for
+  the paper.
+- "Which language swears most?" — reserved for IP-008.
+- "Is this funded?" — PhD programme at FIIT STU, self-directed.
+- "Code / data available?" — yes, MIT-licensed, on GitHub.
+- "Can I reproduce your numbers?" — yes, image SHA is in the deploy
+  runbook.
+- "AI tooling?" — used for scaffolding and code; acknowledge and move
+  on, no dedicated slide.
 -->
 
 ---
 
-# What's Next?
-
-<v-clicks>
-
-- **Transactions & isolation levels** — what *actually* happens inside `BEGIN` / `COMMIT`
-- **Connection pooling deep-dive** — transaction pooling pitfalls, prepared-statement caches
-- **Caching strategies** — Redis, materialised views, query-result caches
-- **Observability deep-dive** — traces, spans, slow-query attribution
-- **Sharding & replication** — when one Postgres isn't enough
-
-</v-clicks>
-
-<v-click>
-
-> Today was the *what*. The next lectures dig into the *why it's fast* and *why it's correct under load*.
-
-</v-click>
-
-<!--
-Plant the hooks for the rest of the semester. Application aspects is a broad
-topic — this lecture is the foundation later lectures build on.
--->
-
----
-
-# Further Reading
+# Further reading
 
 <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm mt-4">
 
 <div>
 
-**Canon — relational & design**
+**Prior art**
 
-- Codd, E. F. (1970). *A Relational Model of Data for Large Shared Data Banks*. CACM 13(6). [DOI](https://doi.org/10.1145/362384.362685) →
-- Chen, P. P. (1976). *The Entity-Relationship Model*. ACM TODS 1(1). [DOI](https://doi.org/10.1145/320434.320440) →
-- Stonebraker, M. & Rowe, L. A. (1986). *The Design of POSTGRES*. SIGMOD. [DOI](https://doi.org/10.1145/16856.16888) →
-- Gray, J. (1981). *The Transaction Concept*. VLDB.
-
-</div>
-
-<div>
-
-**Patterns & engineering**
-
-- Fowler, M. (2003). *Patterns of Enterprise Application Architecture*. Addison-Wesley.
-- Evans, E. (2003). *Domain-Driven Design*. Addison-Wesley.
-- Ambler, S. & Sadalage, P. (2006). *Refactoring Databases*. Addison-Wesley.
-- Kleppmann, M. (2017). *Designing Data-Intensive Applications*. O'Reilly.
+- Guzman, E. & Azócar, D. (2014). *Sentiment analysis of commit
+  comments in GitHub*. MSR.
+- Miller, C. et al. (2022). *"Did you miss my comment or what?"*.
+  ICSE.
 
 </div>
 
 <div>
 
-**Docs & standards**
+**Tools I leaned on**
 
-- PostgreSQL 17 Documentation — [postgresql.org/docs/17](https://www.postgresql.org/docs/17/) →
-- OWASP Top Ten — [owasp.org/www-project-top-ten](https://owasp.org/www-project-top-ten/) →
+- [Tree-sitter](https://tree-sitter.github.io/) — 40-grammar AST parser
+- [LDNOOBW](https://github.com/LDNOOBW) — Shopify's bad-words list
+- [lingua-rs](https://github.com/pemistahl/lingua-rs) — language detection
+- [`emoji`](https://pypi.org/project/emoji/) — Unicode CLDR binding
 
 </div>
 
 <div>
 
-**Going operational**
+**Method**
 
-- CloudNativePG — [cloudnative-pg.io](https://cloudnative-pg.io/) →
-- PgBouncer docs — [pgbouncer.org](https://www.pgbouncer.org/) →
-- pgBackRest — [pgbackrest.org](https://pgbackrest.org/) →
-- Supabase architecture — [supabase.com/docs](https://supabase.com/docs/) →
+- Mann, H. & Whitney, D. (1947). *On a test of whether one of two
+  random variables is stochastically larger than the other*. Ann.
+  Math. Stat.
+- Kerby, D. (2014). *The simple difference formula: an approach to
+  teaching nonparametric correlation*.
+
+</div>
+
+<div>
+
+**Infra**
+
+- [GH Archive](https://www.gharchive.org/) — 2011-present
+- [MongoDB docs](https://www.mongodb.com/docs/) — aggregation ref
+- [Slidev](https://sli.dev/) — this deck's engine
 
 </div>
 
 </div>
 
 <!--
-Photograph this slide if you want it offline — the whole point of the reading
-list is that it outlives the lecture. The left column is the canon, right is
-the modern ops stack. Helland's "Life beyond Distributed Transactions" and
-Sadalage & Fowler's "NoSQL Distilled" are worth naming if anyone asks.
+Photograph this slide if you want it offline. Left column is the
+research context, right is the tooling I credit. Notes mention that
+this slide is photographed frequently — leave it up an extra beat.
+-->
+
+---
+
+# Credits
+
+<v-clicks>
+
+- **FIIT STU** — hardware, PhD program, institutional support
+- **OpenCamp organisers** — for the slot, the venue, the stage
+- **LDNOOBW maintainers** — Shopify + contributors
+- **tree-sitter authors** — every grammar in the pack
+- **pemistahl** — `lingua-rs` + the language-pack
+- **Unicode Consortium** — CLDR emoji data
+- **You** — for sitting through 60 minutes of this
+
+</v-clicks>
+
+<!--
+Last slide before Q&A. Brief credits. Keep it under 45 seconds so we
+preserve the full 5 minutes for audience questions.
 -->
 
 ---
@@ -2200,18 +1939,16 @@ class: text-center
 
 # Questions? 🙋
 
-<div class="text-lg opacity-60 mt-2">Application Aspects in Database Systems</div>
+<div class="mt-4 opacity-70">
+<a href="https://github.com/Sibyx/oss-profanity">github.com/Sibyx/oss-profanity</a>
+</div>
 
 <div class="mt-8 text-sm opacity-50">
-
-*"An ORM makes the easy things easy and the hard things visible."*
-
+<em>"Public Git history is 80× more polite than you'd think — and 6× more emoji-ful than profane."</em>
 </div>
 
-<div class="mt-8">
-  <img src="/images/logo_fiit.svg" class="h-8 inline-block" alt="FIIT STU" />
-</div>
-
-<div class="text-sm opacity-40 mt-4">
-Jakub Dubec — Database Systems 2026
-</div>
+<!--
+Open the floor. If nobody volunteers in the first 5 seconds, I prompt:
+"What's the most surprising number in the talk for you?" That
+usually cracks the ice.
+-->

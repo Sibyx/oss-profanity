@@ -69,7 +69,13 @@ def process_one(repo: Repo, worker_id: str) -> None:
         )
         logger.exception("process: unexpected error on repo %d", repo.id)
     finally:
-        _scratch.cleanup(clone)
+        if config.cleanup_after_repo:
+            _scratch.cleanup(clone)
+        else:
+            logger.debug(
+                "process: leaving clone in place (CLEANUP_AFTER_REPO=false): %s",
+                clone,
+            )
 
 
 def _pipeline(

@@ -18,6 +18,7 @@ changes are documented before implementation.
 | [IP-007](posts/ip-007-repo-worker.md) | Repo worker — Stage 4 claim-clone-analyze loop + GitHub metadata enrichment | ✅ Implemented | 2026-04-24 |
 | [IP-009](posts/ip-009-docker-test-harness.md) | Docker test harness — green-gate before OpenStack deployment | ✅ Implemented | 2026-04-24 |
 | [IP-010](posts/ip-010-deployment.md) | Faculty deployment — GHCR image + per-host compose | ✅ Implemented | 2026-04-25 |
+| [IP-011](posts/ip-011-initial-presentation.md) | Initial OpenCamp presentation — "Vulgarizmy, otvorený kód a jeho kvalita" | ✅ Implemented | 2026-04-25 |
 
 
 

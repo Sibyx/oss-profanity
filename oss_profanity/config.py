@@ -46,6 +46,7 @@ class Config:
     clean_cohort_size: int
     sampling_min_commits: int
     sampling_commit_bins: tuple[int, ...]
+    cleanup_after_repo: bool
 
     @classmethod
     def from_env(cls) -> Config:
@@ -96,7 +97,20 @@ class Config:
             sampling_commit_bins=_parse_commit_bins(
                 os.getenv("SAMPLING_COMMIT_BINS", "20,50,200,1000")
             ),
+            cleanup_after_repo=_parse_bool(
+                os.getenv("CLEANUP_AFTER_REPO", "true")
+            ),
         )
+
+
+def _parse_bool(raw: str) -> bool:
+    """Parse a boolean env var. Accepts ``true|false|1|0|yes|no`` (case-insensitive)."""
+    v = raw.strip().lower()
+    if v in ("true", "1", "yes", "on"):
+        return True
+    if v in ("false", "0", "no", "off"):
+        return False
+    raise ValueError(f"expected boolean, got {raw!r}")
 
 
 def _parse_commit_bins(raw: str) -> tuple[int, ...]:

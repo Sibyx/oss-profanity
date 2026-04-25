@@ -1,0 +1,15 @@
+{
+  "name": "oss-profanity-opencamp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "IP-011: Bratislava OpenCamp 2026 deck — 'Vulgarizmy, otvorený kód a jeho kvalita'",
+  "scripts": {
+    "dev": "slidev slides.md --open",
+    "build": "slidev build slides.md --out dist",
+    "export": "slidev export slides.md --format pdf --output dist/slides.pdf"
+  },
+  "dependencies": {
+    "@slidev/cli": "^51.0.0",
+    "@slidev/theme-seriph": "^1.0.0"
+  }
+}

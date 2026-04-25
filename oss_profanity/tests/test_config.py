@@ -64,6 +64,7 @@ def test_defaults_applied_with_only_mongo_uri(
     assert cfg.clean_cohort_size == 750
     assert cfg.sampling_min_commits == 20
     assert cfg.sampling_commit_bins == (20, 50, 200, 1000)
+    assert cfg.cleanup_after_repo is True
 
 
 def test_env_overrides_apply(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -213,4 +214,41 @@ def test_sampling_commit_bins_rejects_non_integer(
     monkeypatch.setenv("SAMPLING_COMMIT_BINS", "20,fifty,200")
 
     with pytest.raises(ValueError, match="CSV of ints"):
+        Config.from_env()
+
+
+# ---------- CLEANUP_AFTER_REPO ----------
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("true", True),
+        ("True", True),
+        ("1", True),
+        ("yes", True),
+        ("on", True),
+        ("false", False),
+        ("0", False),
+        ("no", False),
+        ("off", False),
+    ],
+)
+def test_cleanup_after_repo_accepts_truthy_and_falsy_forms(
+    monkeypatch: pytest.MonkeyPatch, raw: str, expected: bool
+) -> None:
+    monkeypatch.setenv("MONGO_URI", "mongodb://localhost:27017/test")
+    monkeypatch.setenv("CLEANUP_AFTER_REPO", raw)
+
+    cfg = Config.from_env()
+    assert cfg.cleanup_after_repo is expected
+
+
+def test_cleanup_after_repo_rejects_garbage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MONGO_URI", "mongodb://localhost:27017/test")
+    monkeypatch.setenv("CLEANUP_AFTER_REPO", "maybe")
+
+    with pytest.raises(ValueError, match="boolean"):
         Config.from_env()

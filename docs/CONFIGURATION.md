@@ -35,6 +35,7 @@ Loaded once at import time into a frozen dataclass in [`oss_profanity/config.py`
 | `CLEAN_COHORT_SIZE`          | `750`                                                | IP-006: cohort B target size (matched clean draw); normally identical to `PROFANE_COHORT_SIZE` |
 | `SAMPLING_MIN_COMMITS`       | `20`                                                 | IP-006: minimum `total_commits_in_window` for cohort eligibility (DRAFT §2 floor)      |
 | `SAMPLING_COMMIT_BINS`       | `20,50,200,1000`                                     | IP-006: log-spaced commit-count breakpoints for bin-matching cohort B to cohort A; CSV of strictly-monotonic ints |
+| `CLEANUP_AFTER_REPO`         | `true`                                               | IP-007: `rmtree` the per-repo clone tree after each analysis. Flip to `false` locally to keep the clone around for debugging a failing repo. Accepts `true/false/1/0/yes/no/on/off` (case-insensitive) |
 
 ### `.env` file support
 
